@@ -59,6 +59,15 @@ const initialMessageForm = {
   message: "",
 };
 
+const initialShareForm = {
+  sender_name: "",
+  sender_phone: "",
+  sender_email: "",
+  latitude: "",
+  longitude: "",
+  message: "",
+};
+
 const initialReviewForm = {
   reviewer_name: "",
   reviewer_phone: "",
@@ -368,19 +377,34 @@ function useCurrentUserLocation() {
     return;
   }
 
+  setNotice({
+    type: "success",
+    message: "Getting your current location...",
+  });
+
   navigator.geolocation.getCurrentPosition(
     (position) => {
       setShareForm((current) => ({
         ...current,
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
+        latitude: String(position.coords.latitude),
+        longitude: String(position.coords.longitude),
       }));
+
+      setNotice({
+        type: "success",
+        message: "Location detected. Now click Share Location.",
+      });
     },
     () => {
       setNotice({
         type: "error",
-        message: "Could not get your current location.",
+        message: "Could not get your location. Please allow location permission.",
       });
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
     }
   );
 }
@@ -390,13 +414,32 @@ async function submitUserLocation(event) {
 
   if (!selected) return;
 
+  if (!shareForm.latitude || !shareForm.longitude) {
+    setNotice({
+      type: "error",
+      message: "Please click Use My Current Location first.",
+    });
+    return;
+  }
+
   setSubmitting(true);
   setNotice(null);
 
   try {
+    const payload = {
+      ...shareForm,
+      sender_name: shareForm.sender_name || user?.name || "User",
+      sender_email: shareForm.sender_email || user?.email || "",
+      latitude: Number(shareForm.latitude),
+      longitude: Number(shareForm.longitude),
+      message:
+        shareForm.message ||
+        `User shared pickup location: https://www.google.com/maps?q=${shareForm.latitude},${shareForm.longitude}`,
+    };
+
     const response = await api.post(
       `/ambulance/services/${selected.id}/share-location`,
-      shareForm
+      payload
     );
 
     setNotice({
@@ -412,6 +455,8 @@ async function submitUserLocation(event) {
       longitude: "",
       message: "",
     });
+
+    await openDetails(selected);
   } catch (error) {
     setNotice({
       type: "error",
@@ -434,39 +479,32 @@ async function submitUserLocation(event) {
   function resetFilters() {
     setFilters(initialFilters);
   }
-
-  async function openDetails(service) {
+async function openDetails(service) {
   setSelected(service);
   setSelectedDetails(null);
   setNotice(null);
 
-  setShareForm({
-    sender_name: user?.name || "",
-    sender_phone: "",
-    sender_email: user?.email || "",
+  setShareForm((current) => ({
+    ...current,
+    sender_name: current.sender_name || user?.name || "",
+    sender_email: current.sender_email || user?.email || "",
+    sender_phone: current.sender_phone || "",
     latitude: "",
     longitude: "",
     message: "",
-  });
+  }));
 
-  setReviewForm({
-    reviewer_name: user?.name || "",
-    reviewer_phone: "",
-    rating: 5,
-    review_text: "",
-    service_date: "",
-  });
-
-    try {
-      const response = await api.get(`/ambulance/services/${service.id}`);
-      setSelectedDetails(response.data.data);
-    } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Could not load ambulance details.",
-      });
-    }
+  try {
+    const response = await api.get(`/ambulance/services/${service.id}`);
+    setSelectedDetails(response.data.data);
+  } catch (error) {
+    setNotice({
+      type: "error",
+      message:
+        error.response?.data?.message || "Could not load ambulance details.",
+    });
   }
+}
 
   function updateUpdateForm(event) {
     const { name, value } = event.target;

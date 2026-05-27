@@ -277,7 +277,8 @@ export default function DoctorTelemedicineDashboard() {
             <input type="password" name="password" value={login.password} onChange={(e) => setLogin((c) => ({ ...c, password: e.target.value }))} placeholder="Doctor@123" required />
             <button disabled={loading}>{loading ? "Signing in..." : "Open Doctor Dashboard"}</button>
           </form>
-          <small>Demo doctors: doctor1 to doctor8 · password: Doctor@123</small>
+
+          <small className="portal-login-help">Demo doctors: doctor1 to doctor8 · password: Doctor@123</small>
         </div>
       </section>
     );

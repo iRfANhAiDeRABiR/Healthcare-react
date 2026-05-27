@@ -273,6 +273,8 @@ async function scanPrescriptionToCart(event) {
   setNotice(null);
 
   try {
+      await api.get("/pharmacy/products");
+
     const formData = new FormData();
     formData.append("prescription", prescriptionFile);
     formData.append("prescription_text", prescriptionText);
