@@ -1,11 +1,11 @@
 import { NavLink } from "react-router-dom";
 import {
   Ambulance as AmbulanceIcon,
-  Building2,
   CalendarDays,
   Droplet,
   Hospital,
   Info,
+  LayoutDashboard,
   Microscope,
   Pill,
   Video,
@@ -139,6 +139,11 @@ const navFixStyles = `
 
 const navItems = [
   {
+    label: "Dashboard",
+    path: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
     label: "Hospitals",
     path: "/hospitals",
     icon: Hospital,
@@ -183,7 +188,9 @@ const navItems = [
 export default function Navbar() {
   return (
     <nav className="nav">
-      <div className="container nav-container">
+      <style>{navFixStyles}</style>
+
+      <div className="container nav-container dashboard-nav-fix">
         {navItems.map((item) => {
           const Icon = item.icon;
 
