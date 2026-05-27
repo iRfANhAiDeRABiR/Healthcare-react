@@ -371,7 +371,6 @@ export default function Telemedicine() {
               <button type="button" className="light" onClick={() => setShowWallet(true)}>
                 <Wallet size={17} /> Credits: {wallet.balance || 0}
               </button>
-              <a className="doctor-link" href="/telemedicine-doctor">Doctor Portal</a>
             </div>
           </div>
           <div className="tm-credit-card">

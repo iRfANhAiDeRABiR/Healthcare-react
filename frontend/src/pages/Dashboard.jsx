@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Activity,
   Ambulance,
   Bell,
   CalendarClock,
-  CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Droplet,
-  HeartPulse,
   Loader2,
   MessageCircle,
   PackageCheck,
@@ -31,6 +29,7 @@ function money(value) {
 
 function niceDate(value) {
   if (!value) return "Not set";
+
   try {
     return new Date(value).toLocaleDateString(undefined, {
       month: "short",
@@ -44,6 +43,7 @@ function niceDate(value) {
 
 function niceDateTime(value) {
   if (!value) return "Just now";
+
   try {
     return new Date(value).toLocaleString(undefined, {
       month: "short",
@@ -78,6 +78,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadDashboard() {
@@ -176,6 +177,7 @@ export default function Dashboard() {
               icon={<CalendarClock />}
               to="/appointments"
               action="View appointments"
+              count={appointments.length}
             >
               {appointments.length ? (
                 <div className="stack-list">
@@ -201,6 +203,7 @@ export default function Dashboard() {
               icon={<Pill />}
               to="/drug-interactions"
               action="Manage reminders"
+              count={reminders.length}
             >
               {reminders.length ? (
                 <div className="reminder-grid">
@@ -223,6 +226,7 @@ export default function Dashboard() {
               icon={<PackageCheck />}
               to="/pharmacies"
               action="Track orders"
+              count={orders.length}
             >
               {orders.length ? (
                 <div className="stack-list">
@@ -248,6 +252,7 @@ export default function Dashboard() {
               icon={<Droplet />}
               to="/blood-banks"
               action="Open blood bank"
+              count={(data?.bloodbank?.incoming_count || 0) + (data?.bloodbank?.unread_count || 0)}
             >
               <div className="blood-summary">
                 <div>
@@ -284,6 +289,7 @@ export default function Dashboard() {
               icon={<MessageCircle />}
               to="/blood-banks"
               action="View chats"
+              count={notifications.length}
               wide
             >
               {notifications.length ? (
@@ -307,6 +313,7 @@ export default function Dashboard() {
               icon={<Video />}
               to="/telemedicine"
               action="Open telemedicine"
+              count={telemedicine.length}
             >
               {telemedicine.length ? (
                 <div className="stack-list compact">
@@ -332,6 +339,7 @@ export default function Dashboard() {
               icon={<Ambulance />}
               to="/ambulance"
               action="Open ambulance"
+              count={ambulanceMessages.length}
             >
               {ambulanceMessages.length ? (
                 <div className="stack-list compact">
@@ -381,22 +389,51 @@ function QuickAction({ to, icon, label }) {
   );
 }
 
-function Panel({ title, icon, children, to, action, wide }) {
+function Panel({ title, icon, children, to, action, wide, count = 0 }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <section className={`dash-panel glass-card ${wide ? "wide" : ""}`}>
+    <section
+      className={`dash-panel glass-card ${wide ? "wide" : ""} ${
+        open ? "is-open" : "is-closed"
+      }`}
+    >
       <div className="panel-head">
-        <div>
+        <button
+          className="panel-title-btn"
+          type="button"
+          onClick={() => setOpen((current) => !current)}
+        >
           <span>{icon}</span>
-          <h2>{title}</h2>
+
+          <div>
+            <h2>{title}</h2>
+            <small>{open ? "Hide details" : "Tap to expand details"}</small>
+          </div>
+        </button>
+
+        <div className="panel-actions">
+          <b className="panel-count">{count}</b>
+
+          {to && (
+            <Link to={to}>
+              {action}
+              <ChevronRight size={16} />
+            </Link>
+          )}
+
+          <button
+            className="panel-toggle"
+            type="button"
+            onClick={() => setOpen((current) => !current)}
+            aria-label={open ? "Collapse section" : "Expand section"}
+          >
+            <ChevronDown size={18} />
+          </button>
         </div>
-        {to && (
-          <Link to={to}>
-            {action}
-            <ChevronRight size={16} />
-          </Link>
-        )}
       </div>
-      {children}
+
+      {open && <div className="panel-body">{children}</div>}
     </section>
   );
 }
@@ -687,13 +724,28 @@ const styles = `
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  align-items: start;
 }
 
 .dash-panel {
   border-radius: 28px;
-  padding: 20px;
-  min-height: 290px;
+  padding: 18px;
+  min-height: auto;
   animation: panelIn .45s ease both;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.dash-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 28px 80px rgba(15,23,42,.12);
+}
+
+.dash-panel.is-closed {
+  min-height: 92px;
+}
+
+.dash-panel.is-open {
+  min-height: 260px;
 }
 
 .dash-panel.wide {
@@ -705,29 +757,64 @@ const styles = `
   justify-content: space-between;
   gap: 12px;
   align-items: center;
-  margin-bottom: 16px;
 }
 
-.panel-head > div {
+.panel-title-btn {
+  border: none;
+  background: transparent;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  min-width: 0;
 }
 
-.panel-head span {
-  width: 44px;
-  height: 44px;
+.panel-title-btn > span {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 17px;
   color: #0f766e;
   background: rgba(204,251,241,.75);
 }
 
-.panel-head h2 {
+.panel-title-btn h2 {
   margin: 0;
   letter-spacing: -.035em;
   font-size: 1.18rem;
+}
+
+.panel-title-btn small {
+  display: block;
+  margin-top: 4px;
+  color: #94a3b8;
+  font-weight: 850;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+
+.panel-count {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f766e;
+  background: rgba(204,251,241,.8);
+  border: 1px solid rgba(20,184,166,.18);
+  font-weight: 950;
 }
 
 .panel-head a {
@@ -738,6 +825,37 @@ const styles = `
   color: #2563eb;
   font-weight: 950;
   white-space: nowrap;
+}
+
+.panel-toggle {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #2563eb;
+  background: #eff6ff;
+  transition: .2s ease;
+}
+
+.panel-toggle:hover {
+  color: white;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+}
+
+.panel-toggle svg {
+  transition: transform .22s ease;
+}
+
+.dash-panel.is-open .panel-toggle svg {
+  transform: rotate(180deg);
+}
+
+.panel-body {
+  margin-top: 16px;
+  animation: expandPanel .24s ease both;
 }
 
 .stack-list {
@@ -1023,6 +1141,11 @@ const styles = `
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes expandPanel {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (max-width: 1100px) {
   .quick-row,
   .stats-grid {
@@ -1059,6 +1182,16 @@ const styles = `
   .notify-grid,
   .blood-summary {
     grid-template-columns: 1fr;
+  }
+
+  .panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-actions {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .mini-item {
