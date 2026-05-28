@@ -108,7 +108,7 @@ export default function DrugInteractions() {
 
   const searchedMedicines = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return medicines.slice(0, 9);
+    if (!q) return medicines.slice(0, 6);
 
     return medicines
       .filter((medicine) =>
@@ -117,7 +117,7 @@ export default function DrugInteractions() {
           .toLowerCase()
           .includes(q)
       )
-      .slice(0, 12);
+      .slice(0, 6);
   }, [medicines, search]);
 
   useEffect(() => {
@@ -1141,7 +1141,7 @@ const styles = `
 .medicine-results {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
   margin-top: 14px;
 }
 
