@@ -59,15 +59,6 @@ const initialMessageForm = {
   message: "",
 };
 
-const initialShareForm = {
-  sender_name: "",
-  sender_phone: "",
-  sender_email: "",
-  latitude: "",
-  longitude: "",
-  message: "",
-};
-
 const initialReviewForm = {
   reviewer_name: "",
   reviewer_phone: "",
@@ -377,34 +368,19 @@ function useCurrentUserLocation() {
     return;
   }
 
-  setNotice({
-    type: "success",
-    message: "Getting your current location...",
-  });
-
   navigator.geolocation.getCurrentPosition(
     (position) => {
       setShareForm((current) => ({
         ...current,
-        latitude: String(position.coords.latitude),
-        longitude: String(position.coords.longitude),
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
       }));
-
-      setNotice({
-        type: "success",
-        message: "Location detected. Now click Share Location.",
-      });
     },
     () => {
       setNotice({
         type: "error",
-        message: "Could not get your location. Please allow location permission.",
+        message: "Could not get your current location.",
       });
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
     }
   );
 }
@@ -414,32 +390,13 @@ async function submitUserLocation(event) {
 
   if (!selected) return;
 
-  if (!shareForm.latitude || !shareForm.longitude) {
-    setNotice({
-      type: "error",
-      message: "Please click Use My Current Location first.",
-    });
-    return;
-  }
-
   setSubmitting(true);
   setNotice(null);
 
   try {
-    const payload = {
-      ...shareForm,
-      sender_name: shareForm.sender_name || user?.name || "User",
-      sender_email: shareForm.sender_email || user?.email || "",
-      latitude: Number(shareForm.latitude),
-      longitude: Number(shareForm.longitude),
-      message:
-        shareForm.message ||
-        `User shared pickup location: https://www.google.com/maps?q=${shareForm.latitude},${shareForm.longitude}`,
-    };
-
     const response = await api.post(
       `/ambulance/services/${selected.id}/share-location`,
-      payload
+      shareForm
     );
 
     setNotice({
@@ -455,8 +412,6 @@ async function submitUserLocation(event) {
       longitude: "",
       message: "",
     });
-
-    await openDetails(selected);
   } catch (error) {
     setNotice({
       type: "error",
@@ -479,32 +434,39 @@ async function submitUserLocation(event) {
   function resetFilters() {
     setFilters(initialFilters);
   }
-async function openDetails(service) {
+
+  async function openDetails(service) {
   setSelected(service);
   setSelectedDetails(null);
   setNotice(null);
 
-  setShareForm((current) => ({
-    ...current,
-    sender_name: current.sender_name || user?.name || "",
-    sender_email: current.sender_email || user?.email || "",
-    sender_phone: current.sender_phone || "",
+  setShareForm({
+    sender_name: user?.name || "",
+    sender_phone: "",
+    sender_email: user?.email || "",
     latitude: "",
     longitude: "",
     message: "",
-  }));
+  });
 
-  try {
-    const response = await api.get(`/ambulance/services/${service.id}`);
-    setSelectedDetails(response.data.data);
-  } catch (error) {
-    setNotice({
-      type: "error",
-      message:
-        error.response?.data?.message || "Could not load ambulance details.",
-    });
+  setReviewForm({
+    reviewer_name: user?.name || "",
+    reviewer_phone: "",
+    rating: 5,
+    review_text: "",
+    service_date: "",
+  });
+
+    try {
+      const response = await api.get(`/ambulance/services/${service.id}`);
+      setSelectedDetails(response.data.data);
+    } catch (error) {
+      setNotice({
+        type: "error",
+        message: error.response?.data?.message || "Could not load ambulance details.",
+      });
+    }
   }
-}
 
   function updateUpdateForm(event) {
     const { name, value } = event.target;
@@ -672,7 +634,7 @@ async function openDetails(service) {
         </div>
 
         <div className="filter-panel">
-          <div className="search-field">
+          <div className={`search-field ${loading ? "is-searching" : ""}`}> 
             <Search size={18} />
             <input
               name="search"
@@ -750,7 +712,11 @@ async function openDetails(service) {
         </div>
 
         {loading ? (
-          <div className="empty-card">Loading ambulance services...</div>
+          <div className="empty-card ambulance-loading">
+            <span className="loading-ring" />
+            <strong>Searching ambulances...</strong>
+            <small>Finding verified services that match your filters</small>
+          </div>
         ) : services.length === 0 ? (
           <div className="empty-card">No ambulance services found.</div>
         ) : (
@@ -3042,6 +3008,313 @@ body {
   .manager-message-bubble {
     margin-left: 0;
     margin-right: 0;
+  }
+}
+
+
+/* ===== MODERN HOTLINE, SEARCH, FILTER CONTROLS PATCH ===== */
+.hotline-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(59, 130, 246, .32), transparent 34%),
+    radial-gradient(circle at 82% 78%, rgba(20, 184, 166, .26), transparent 35%),
+    linear-gradient(145deg, #020617 0%, #0f172a 52%, #111827 100%) !important;
+  border: 1px solid rgba(148, 163, 184, .24) !important;
+  box-shadow:
+    0 28px 70px rgba(2, 6, 23, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .08) !important;
+  transform: translateZ(0);
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+.hotline-card::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  pointer-events: none;
+}
+
+.hotline-card::after {
+  content: "";
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  right: -70px;
+  bottom: -80px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, .38);
+  filter: blur(4px);
+  z-index: -1;
+  animation: hotlineGlow 3.4s ease-in-out infinite;
+}
+
+.hotline-card > svg {
+  width: 50px;
+  height: 50px;
+  padding: 12px;
+  border-radius: 18px;
+  color: #bfdbfe;
+  background: rgba(255, 255, 255, .08);
+  border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.hotline-card strong {
+  color: #ffffff;
+  letter-spacing: .04em;
+  text-shadow: 0 8px 24px rgba(37, 99, 235, .25);
+}
+
+.hotline-card span {
+  color: #c7d2fe !important;
+  letter-spacing: .01em;
+}
+
+.hotline-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(96, 165, 250, .45) !important;
+  box-shadow:
+    0 34px 90px rgba(2, 6, 23, .34),
+    0 0 0 7px rgba(37, 99, 235, .08),
+    inset 0 1px 0 rgba(255, 255, 255, .1) !important;
+}
+
+.filter-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .94), rgba(248, 250, 252, .92)) !important;
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(219, 227, 239, .96) !important;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .08) !important;
+}
+
+.search-field {
+  position: relative;
+}
+
+.search-field svg {
+  transition: color .2s ease, transform .2s ease;
+}
+
+.search-field input,
+.filter-panel > input,
+.filter-panel select,
+.clear-btn,
+.check-pill {
+  transition:
+    border-color .2s ease,
+    box-shadow .2s ease,
+    background .2s ease,
+    color .2s ease,
+    transform .2s ease;
+}
+
+.search-field input,
+.filter-panel > input,
+.filter-panel select {
+  min-height: 54px !important;
+  border-radius: 18px !important;
+  background: rgba(255, 255, 255, .9) !important;
+  border: 1px solid #dbeafe !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 8px 22px rgba(15, 23, 42, .04);
+}
+
+.search-field input:focus,
+.filter-panel > input:focus,
+.filter-panel select:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, .13), 0 14px 32px rgba(15, 23, 42, .08) !important;
+}
+
+.search-field:focus-within svg,
+.search-field.is-searching svg {
+  color: #2563eb !important;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.search-field.is-searching::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 999px;
+  border: 3px solid #dbeafe;
+  border-top-color: #2563eb;
+  animation: spinSearch .8s linear infinite;
+}
+
+.search-field.is-searching input {
+  padding-right: 48px !important;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .92), rgba(239, 246, 255, .94), rgba(255, 255, 255, .92)) !important;
+  background-size: 220% 100% !important;
+  animation: searchingShimmer 1.25s ease-in-out infinite;
+}
+
+.filter-panel select,
+.update-form select,
+.message-form select,
+.review-form select,
+.user-chat-form select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding-right: 44px !important;
+  cursor: pointer;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #2563eb 50%),
+    linear-gradient(135deg, #2563eb 50%, transparent 50%),
+    linear-gradient(135deg, rgba(219, 234, 254, .9), rgba(219, 234, 254, .9)) !important;
+  background-position:
+    calc(100% - 23px) 50%,
+    calc(100% - 17px) 50%,
+    calc(100% - 43px) 50% !important;
+  background-size: 7px 7px, 7px 7px, 1px 28px !important;
+  background-repeat: no-repeat !important;
+}
+
+.filter-panel select:hover,
+.update-form select:hover,
+.message-form select:hover,
+.review-form select:hover,
+.user-chat-form select:hover {
+  border-color: #93c5fd !important;
+  transform: translateY(-1px);
+}
+
+.check-pill {
+  position: relative;
+  min-height: 54px !important;
+  border-radius: 18px !important;
+  background: linear-gradient(135deg, #eff6ff, #f0fdfa) !important;
+  border: 1px solid #bfdbfe !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86), 0 10px 24px rgba(37, 99, 235, .06);
+  color: #1e3a8a !important;
+  user-select: none;
+}
+
+.check-pill:hover {
+  transform: translateY(-2px);
+  border-color: #60a5fa !important;
+  box-shadow: 0 16px 32px rgba(37, 99, 235, .12);
+}
+
+.check-pill input {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  position: relative;
+  width: 38px !important;
+  height: 22px !important;
+  flex: 0 0 38px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: #cbd5e1 !important;
+  box-shadow: inset 0 2px 5px rgba(15, 23, 42, .18);
+  cursor: pointer;
+  transition: background .2s ease;
+}
+
+.check-pill input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .22);
+  transition: transform .2s ease;
+}
+
+.check-pill input:checked {
+  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+}
+
+.check-pill input:checked::after {
+  transform: translateX(16px);
+}
+
+.check-pill:has(input:checked) {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+  border-color: transparent !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, .22);
+}
+
+.clear-btn {
+  border-radius: 18px !important;
+  background: #ffffff !important;
+  border: 1px solid #dbeafe !important;
+  color: #2563eb !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .05) !important;
+}
+
+.clear-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 34px rgba(37, 99, 235, .22) !important;
+}
+
+.ambulance-loading {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(37, 99, 235, .1), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, .94), rgba(240, 253, 250, .9)) !important;
+}
+
+.ambulance-loading strong {
+  color: #0f172a;
+  font-size: 1.08rem;
+}
+
+.ambulance-loading small {
+  color: #64748b;
+  font-weight: 850;
+}
+
+.loading-ring {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: 4px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-right-color: #14b8a6;
+  animation: spinSearch .85s linear infinite;
+}
+
+@keyframes spinSearch {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes searchingShimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+@keyframes hotlineGlow {
+  0%, 100% { transform: scale(1); opacity: .55; }
+  50% { transform: scale(1.18); opacity: .9; }
+}
+
+@media (max-width: 760px) {
+  .hotline-card {
+    min-height: 150px;
+  }
+
+  .check-pill {
+    justify-content: flex-start !important;
   }
 }
 

@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import multer from "multer";
 import { createWorker } from "tesseract.js";
-import { fileURLToPath } from "url";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 import { pool } from "../db.js";
 
 const require = createRequire(import.meta.url);
@@ -662,6 +662,65 @@ function pairInteraction(a, b, medicines) {
   };
 }
 
+function detectPrescriptionMedicines(rawText, medicines) {
+  const text = normalizePrescriptionText(rawText);
+
+  if (!text) return [];
+
+  const detected = [];
+  const seen = new Set();
+
+  for (const name of Object.keys(medicines)) {
+    const fullName = normalizePrescriptionText(name);
+    const baseName = prescriptionMedicineBaseName(name);
+
+    const fullMatch = fullName && text.includes(fullName);
+    const baseMatch = baseName.length >= 4 && text.includes(baseName);
+
+    if ((fullMatch || baseMatch) && !seen.has(name.toLowerCase())) {
+      seen.add(name.toLowerCase());
+      detected.push(name);
+    }
+  }
+
+  return detected;
+}
+
+function buildInteractionReport(selected, medicines) {
+  const unique = [...new Set((selected || []).map(clean).filter(Boolean))].filter(
+    (name) => medicines[name]
+  );
+
+  const results = [];
+
+  for (let i = 0; i < unique.length; i += 1) {
+    for (let j = i + 1; j < unique.length; j += 1) {
+      const result = pairInteraction(unique[i], unique[j], medicines);
+      if (result) results.push(result);
+    }
+  }
+
+  const highestSeverity = results.reduce((highest, item) => {
+    return severityRank(item.severity) > severityRank(highest)
+      ? item.severity
+      : highest;
+  }, results.length ? "Minor" : "None");
+
+  return {
+    selected: unique,
+    results,
+    highest_severity: highestSeverity,
+    no_known_major_interaction: results.length === 0,
+    comparison: unique.map((name) => {
+      const { interacts, ...info } = medicines[name];
+      return {
+        ...info,
+        interaction_count: Object.keys(interacts || {}).length,
+      };
+    }),
+  };
+}
+
 router.use(async (_req, _res, next) => {
   try {
     await ensureDrugTables();
@@ -733,43 +792,18 @@ router.post("/check", async (req, res) => {
     ? req.body.medicines.map(clean).filter(Boolean)
     : [];
 
-  const unique = [...new Set(selected)].filter((name) => medicines[name]);
+  const valid = selected.filter((name) => medicines[name]);
 
-  if (unique.length < 2) {
+  if ([...new Set(valid)].length < 2) {
     return res.status(400).json({
       success: false,
       message: "Select at least two valid medicines to check interactions.",
     });
   }
 
-  const results = [];
-
-  for (let i = 0; i < unique.length; i += 1) {
-    for (let j = i + 1; j < unique.length; j += 1) {
-      const result = pairInteraction(unique[i], unique[j], medicines);
-      if (result) results.push(result);
-    }
-  }
-
-  const highestSeverity = results.reduce((highest, item) => {
-    return severityRank(item.severity) > severityRank(highest) ? item.severity : highest;
-  }, results.length ? "Minor" : "None");
-
   res.json({
     success: true,
-    data: {
-      selected: unique,
-      results,
-      highest_severity: highestSeverity,
-      no_known_major_interaction: results.length === 0,
-      comparison: unique.map((name) => {
-        const { interacts, ...info } = medicines[name];
-        return {
-          ...info,
-          interaction_count: Object.keys(interacts || {}).length,
-        };
-      }),
-    },
+    data: buildInteractionReport(valid, medicines),
   });
 });
 
@@ -855,6 +889,30 @@ router.post("/prescriptions", requireUser, upload.single("prescription_file"), a
 
   const filePath = req.file ? `/uploads/prescriptions/${req.file.filename}` : null;
 
+  let extractedText = "";
+
+  if (req.file) {
+    try {
+      extractedText = await extractPrescriptionText(req.file);
+    } catch (ocrError) {
+      console.error("Prescription OCR error:", ocrError);
+    }
+  }
+
+  const medicines = await loadMedicines();
+  const combinedPrescriptionText = [
+    prescription_title,
+    doctor_name,
+    notes,
+    req.file?.originalname || "",
+    extractedText,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const detectedMedicines = detectPrescriptionMedicines(combinedPrescriptionText, medicines);
+  const interactionReport = buildInteractionReport(detectedMedicines, medicines);
+
   const [result] = await pool.query(
     `INSERT INTO user_prescriptions
      (user_id, prescription_title, doctor_name, prescription_date, file_path, notes)
@@ -869,10 +927,33 @@ router.post("/prescriptions", requireUser, upload.single("prescription_file"), a
     ]
   );
 
+  const interactionCount = interactionReport.results.length;
+  const detectedCount = detectedMedicines.length;
+
+  let message = "Prescription added successfully.";
+
+  if (detectedCount >= 2) {
+    message = interactionCount
+      ? `Prescription saved. ${detectedCount} medicine(s) detected and ${interactionCount} possible interaction(s) found.`
+      : `Prescription saved. ${detectedCount} medicine(s) detected and no listed major interaction was found.`;
+  } else if (detectedCount === 1) {
+    message = "Prescription saved. 1 medicine was detected, but at least 2 medicines are needed to check interactions.";
+  } else {
+    message = "Prescription saved, but no medicine name was detected automatically. You can type medicine names in Notes and upload again.";
+  }
+
   res.status(201).json({
     success: true,
-    message: "Prescription added successfully.",
-    data: { id: result.insertId, file_path: filePath },
+    message,
+    data: {
+      id: result.insertId,
+      file_path: filePath,
+      original_file_name: req.file?.originalname || "",
+      extracted_text: extractedText,
+      detected_medicines: detectedMedicines,
+      detected_count: detectedCount,
+      interaction_report: interactionReport,
+    },
   });
 });
 

@@ -63,7 +63,6 @@ function fileUrl(path) {
 
 function formatDate(value) {
   if (!value) return "N/A";
-
   try {
     return new Date(value).toLocaleDateString(undefined, {
       year: "numeric",
@@ -79,14 +78,10 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-
 export default function DrugInteractions() {
   const { user } = useAuth();
-  const [meta, setMeta] = useState({
-    total_medicines: 0,
-    known_interactions: 0,
-    severity_counts: [],
-  });
+
+  const [meta, setMeta] = useState({ total_medicines: 0, known_interactions: 0, severity_counts: [] });
   const [medicines, setMedicines] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(["", ""]);
@@ -96,6 +91,7 @@ export default function DrugInteractions() {
   const [showResults, setShowResults] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [showPrescription, setShowPrescription] = useState(false);
+  const [prescriptionAnalysis, setPrescriptionAnalysis] = useState(null);
   const [reminderForm, setReminderForm] = useState(emptyReminder);
   const [prescriptionForm, setPrescriptionForm] = useState(emptyPrescription);
   const [reminders, setReminders] = useState([]);
@@ -122,7 +118,6 @@ export default function DrugInteractions() {
 
   useEffect(() => {
     loadInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -132,7 +127,6 @@ export default function DrugInteractions() {
       setReminders([]);
       setPrescriptions([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   async function loadInitialData() {
@@ -149,9 +143,7 @@ export default function DrugInteractions() {
     } catch (error) {
       setNotice({
         type: "error",
-        message:
-          error.response?.data?.message ||
-          "Could not load drug interaction database.",
+        message: error.response?.data?.message || "Could not load drug interaction database.",
       });
     } finally {
       setLoading(false);
@@ -175,9 +167,7 @@ export default function DrugInteractions() {
   }
 
   function updateSelected(index, value) {
-    setSelected((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? value : item))
-    );
+    setSelected((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)));
   }
 
   function addMedicineRow() {
@@ -187,9 +177,7 @@ export default function DrugInteractions() {
   function removeMedicineRow(index) {
     setSelected((current) => {
       if (current.length <= 2) {
-        return current.map((item, itemIndex) =>
-          itemIndex === index ? "" : item
-        );
+        return current.map((item, itemIndex) => (itemIndex === index ? "" : item));
       }
 
       return current.filter((_item, itemIndex) => itemIndex !== index);
@@ -202,10 +190,7 @@ export default function DrugInteractions() {
     const medicinesToCheck = selected.filter(Boolean);
 
     if (medicinesToCheck.length < 2) {
-      setNotice({
-        type: "error",
-        message: "Select at least two medicines to check.",
-      });
+      setNotice({ type: "error", message: "Select at least two medicines to check." });
       return;
     }
 
@@ -232,15 +217,10 @@ export default function DrugInteractions() {
   function quickAddMedicine(name) {
     setSelected((current) => {
       if (current.includes(name)) return current;
-
       const emptyIndex = current.findIndex((item) => !item);
-
       if (emptyIndex >= 0) {
-        return current.map((item, index) =>
-          index === emptyIndex ? name : item
-        );
+        return current.map((item, index) => (index === emptyIndex ? name : item));
       }
-
       return [...current, name];
     });
   }
@@ -254,32 +234,20 @@ export default function DrugInteractions() {
     event.preventDefault();
 
     if (!user) {
-      setNotice({
-        type: "error",
-        message: "Please sign in first to save reminders.",
-      });
+      setNotice({ type: "error", message: "Please sign in first to save reminders." });
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await api.post(
-        "/drug-interactions/reminders",
-        reminderForm
-      );
-      setNotice({
-        type: "success",
-        message: response.data.message || "Medicine reminder saved.",
-      });
+      const response = await api.post("/drug-interactions/reminders", reminderForm);
+      setNotice({ type: "success", message: response.data.message || "Medicine reminder saved." });
       setReminderForm({ ...emptyReminder, start_date: today() });
       setShowReminder(false);
       await loadUserLists();
     } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Could not save reminder.",
-      });
+      setNotice({ type: "error", message: error.response?.data?.message || "Could not save reminder." });
     } finally {
       setLoading(false);
     }
@@ -290,10 +258,7 @@ export default function DrugInteractions() {
       await api.patch(`/drug-interactions/reminders/${id}/toggle`);
       await loadUserLists();
     } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Could not update reminder.",
-      });
+      setNotice({ type: "error", message: error.response?.data?.message || "Could not update reminder." });
     }
   }
 
@@ -304,10 +269,7 @@ export default function DrugInteractions() {
       await api.delete(`/drug-interactions/reminders/${id}`);
       await loadUserLists();
     } catch (error) {
-      setNotice({
-        type: "error",
-        message: error.response?.data?.message || "Could not delete reminder.",
-      });
+      setNotice({ type: "error", message: error.response?.data?.message || "Could not delete reminder." });
     }
   }
 
@@ -336,6 +298,8 @@ export default function DrugInteractions() {
     });
 
     setLoading(true);
+    setNotice(null);
+    setPrescriptionAnalysis(null);
 
     try {
       const response = await api.post(
@@ -346,23 +310,38 @@ export default function DrugInteractions() {
         }
       );
 
+      const detectedMedicines = response.data.data?.detected_medicines || [];
+      const interactionReport = response.data.data?.interaction_report;
+
       setNotice({
         type: "success",
-        message: response.data.message || "Prescription added.",
+        message: response.data.message || "Prescription added and checked.",
       });
+
+      setPrescriptionAnalysis({
+        message: response.data.message || "Prescription added and checked.",
+        data: response.data.data || {},
+      });
+
+      if (interactionReport && detectedMedicines.length >= 2) {
+        setSelected(detectedMedicines);
+        setResults(interactionReport);
+      }
+
       setPrescriptionForm(emptyPrescription);
       setShowPrescription(false);
       await loadUserLists();
     } catch (error) {
       setNotice({
         type: "error",
-        message: error.response?.data?.message || "Could not add prescription.",
+        message:
+          error.response?.data?.message ||
+          "Could not add or check prescription.",
       });
     } finally {
       setLoading(false);
     }
   }
-
 
   async function deletePrescription(id) {
     if (!window.confirm("Delete this prescription?")) return;
@@ -371,11 +350,7 @@ export default function DrugInteractions() {
       await api.delete(`/drug-interactions/prescriptions/${id}`);
       await loadUserLists();
     } catch (error) {
-      setNotice({
-        type: "error",
-        message:
-          error.response?.data?.message || "Could not delete prescription.",
-      });
+      setNotice({ type: "error", message: error.response?.data?.message || "Could not delete prescription." });
     }
   }
 
@@ -404,39 +379,23 @@ export default function DrugInteractions() {
             </button>
             <button type="button" onClick={() => setShowPrescription(true)}>
               <UploadCloud size={17} />
-              Add Prescription
+              Check Prescription
             </button>
           </div>
         </div>
 
         {notice && (
           <div className={`di-notice ${notice.type}`}>
-            {notice.type === "success" ? (
-              <CheckCircle size={18} />
-            ) : (
-              <AlertTriangle size={18} />
-            )}
+            {notice.type === "success" ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
             {notice.message}
           </div>
         )}
 
         <div className="di-stats">
-          <Stat
-            icon={<Stethoscope />}
-            label="Medicines"
-            value={meta.total_medicines || 0}
-          />
-          <Stat
-            icon={<ShieldAlert />}
-            label="Known Interactions"
-            value={meta.known_interactions || 0}
-          />
+          <Stat icon={<Stethoscope />} label="Medicines" value={meta.total_medicines || 0} />
+          <Stat icon={<ShieldAlert />} label="Known Interactions" value={meta.known_interactions || 0} />
           <Stat icon={<Bell />} label="Your Reminders" value={reminders.length} />
-          <Stat
-            icon={<FileText />}
-            label="Prescriptions"
-            value={prescriptions.length}
-          />
+          <Stat icon={<FileText />} label="Prescriptions" value={prescriptions.length} />
         </div>
 
         <div className="di-grid">
@@ -447,11 +406,7 @@ export default function DrugInteractions() {
                   <h2>Search Medicine Database</h2>
                   <p>Find medicines by name, category, or common use.</p>
                 </div>
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={loadInitialData}
-                >
+                <button type="button" className="ghost-btn" onClick={loadInitialData}>
                   <RefreshCcw size={16} />
                   Refresh
                 </button>
@@ -468,19 +423,13 @@ export default function DrugInteractions() {
 
               <div className="medicine-results">
                 {searchedMedicines.map((medicine) => (
-                  <article
-                    className="medicine-chip-card"
-                    key={medicine.medicine_name}
-                  >
+                  <article className="medicine-chip-card" key={medicine.medicine_name}>
                     <div>
                       <h3>{medicine.medicine_name}</h3>
                       <p>{medicine.category}</p>
                       <small>{medicine.common_use}</small>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => quickAddMedicine(medicine.medicine_name)}
-                    >
+                    <button type="button" onClick={() => quickAddMedicine(medicine.medicine_name)}>
                       <Plus size={16} />
                       Add
                     </button>
@@ -493,10 +442,7 @@ export default function DrugInteractions() {
               <div className="card-head">
                 <div>
                   <h2>Interaction Checker</h2>
-                  <p>
-                    Select two or more medicines to check pairwise interaction
-                    risk.
-                  </p>
+                  <p>Select two or more medicines to check pairwise interaction risk.</p>
                 </div>
               </div>
 
@@ -504,17 +450,10 @@ export default function DrugInteractions() {
                 {selected.map((value, index) => (
                   <div className="selected-row" key={`${index}-${value}`}>
                     <span>{index + 1}</span>
-                    <select
-                      value={value}
-                      onChange={(event) =>
-                        updateSelected(index, event.target.value)
-                      }
-                    >
+                    <select value={value} onChange={(event) => updateSelected(index, event.target.value)}>
                       <option value="">Select medication...</option>
                       {medicineNames.map((name) => (
-                        <option key={name} value={name}>
-                          {name}
-                        </option>
+                        <option key={name} value={name}>{name}</option>
                       ))}
                     </select>
                     <button type="button" onClick={() => removeMedicineRow(index)}>
@@ -525,11 +464,7 @@ export default function DrugInteractions() {
               </div>
 
               <div className="checker-actions">
-                <button
-                  type="button"
-                  className="ghost-btn"
-                  onClick={addMedicineRow}
-                >
+                <button type="button" className="ghost-btn" onClick={addMedicineRow}>
                   <Plus size={16} />
                   Add Medicine
                 </button>
@@ -542,10 +477,7 @@ export default function DrugInteractions() {
 
             <div className="severity-grid">
               {Object.values(severityMeta).map((item) => (
-                <article
-                  className={`severity-card ${item.className}`}
-                  key={item.title}
-                >
+                <article className={`severity-card ${item.className}`} key={item.title}>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
                 </article>
@@ -560,8 +492,8 @@ export default function DrugInteractions() {
                 Important Notice
               </h2>
               <p>
-                This tool uses your local educational database. It does not
-                replace medical advice, diagnosis, or treatment.
+                This tool uses your local educational database. It does not replace
+                medical advice, diagnosis, or treatment.
               </p>
               <ul>
                 <li>Ask a doctor before combining medicines.</li>
@@ -573,126 +505,88 @@ export default function DrugInteractions() {
             <div className="di-card list-card">
               <h2>Your Reminders</h2>
               {user ? (
-                reminders.length ? (
-                  reminders.slice(0, 5).map((item) => (
-                    <article className="mini-record" key={item.id}>
-                      <div>
-                        <strong>{item.medicine_name}</strong>
-                        <span>
-                          {item.dosage || "No dosage"} · {item.reminder_time}
-                        </span>
-                        <small>
-                          {item.frequency} · {formatDate(item.start_date)}
-                        </small>
-                      </div>
-                      <div className="mini-actions">
-                        <button type="button" onClick={() => toggleReminder(item.id)}>
-                          {item.is_active ? "Active" : "Off"}
-                        </button>
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => deleteReminder(item.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty-side">No reminders yet.</p>
-                )
-              ) : (
-                <p className="empty-side">Sign in to save reminders.</p>
-              )}
+                reminders.length ? reminders.slice(0, 5).map((item) => (
+                  <article className="mini-record" key={item.id}>
+                    <div>
+                      <strong>{item.medicine_name}</strong>
+                      <span>{item.dosage || "No dosage"} · {item.reminder_time}</span>
+                      <small>{item.frequency} · {formatDate(item.start_date)}</small>
+                    </div>
+                    <div className="mini-actions">
+                      <button type="button" onClick={() => toggleReminder(item.id)}>
+                        {item.is_active ? "Active" : "Off"}
+                      </button>
+                      <button type="button" className="danger" onClick={() => deleteReminder(item.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </article>
+                )) : <p className="empty-side">No reminders yet.</p>
+              ) : <p className="empty-side">Sign in to save reminders.</p>}
             </div>
 
             <div className="di-card list-card">
               <h2>Prescriptions</h2>
               {user ? (
-                prescriptions.length ? (
-                  prescriptions.slice(0, 5).map((item) => (
-                    <article className="mini-record" key={item.id}>
-                      <div>
-                        <strong>{item.prescription_title}</strong>
-                        <span>{item.doctor_name || "Doctor not added"}</span>
-                        <small>
-                          {formatDate(item.prescription_date || item.created_at)}
-                        </small>
-                      </div>
-                      <div className="mini-actions">
-                        {item.file_path && (
-                          <a
-                            href={fileUrl(item.file_path)}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Open
-                          </a>
-                        )}
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => deletePrescription(item.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <p className="empty-side">No prescriptions yet.</p>
-                )
-              ) : (
-                <p className="empty-side">Sign in to upload prescriptions.</p>
-              )}
+                prescriptions.length ? prescriptions.slice(0, 5).map((item) => (
+                  <article className="mini-record" key={item.id}>
+                    <div>
+                      <strong>{item.prescription_title}</strong>
+                      <span>{item.doctor_name || "Doctor not added"}</span>
+                      <small>{formatDate(item.prescription_date || item.created_at)}</small>
+                    </div>
+                    <div className="mini-actions">
+                      {item.file_path && (
+                        <a href={fileUrl(item.file_path)} target="_blank" rel="noreferrer">Open</a>
+                      )}
+                      <button type="button" className="danger" onClick={() => deletePrescription(item.id)}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </article>
+                )) : <p className="empty-side">No prescriptions yet.</p>
+              ) : <p className="empty-side">Sign in to upload prescriptions.</p>}
             </div>
           </aside>
         </div>
       </div>
 
       {showResults && (
-        <ResultModal results={results} onClose={() => setShowResults(false)} />
+        <ResultModal
+          results={results}
+          onClose={() => setShowResults(false)}
+        />
+      )}
+
+      {prescriptionAnalysis && (
+        <PrescriptionAnalysisModal
+          analysis={prescriptionAnalysis}
+          onClose={() => setPrescriptionAnalysis(null)}
+          onOpenReport={() => {
+            const report = prescriptionAnalysis?.data?.interaction_report;
+            const detected = prescriptionAnalysis?.data?.detected_medicines || [];
+
+            if (report) {
+              setSelected(detected);
+              setResults(report);
+              setPrescriptionAnalysis(null);
+              setShowResults(true);
+            }
+          }}
+        />
       )}
 
       {showReminder && (
-        <Modal
-          title="Set Medicine Reminder"
-          icon={<Bell size={18} />}
-          onClose={() => setShowReminder(false)}
-        >
+        <Modal title="Set Medicine Reminder" icon={<Bell size={18} />} onClose={() => setShowReminder(false)}>
           {!user ? (
             <div className="login-needed">Please sign in first to save reminders.</div>
           ) : (
             <form className="modal-form" onSubmit={saveReminder}>
-              <input
-                name="medicine_name"
-                value={reminderForm.medicine_name}
-                onChange={updateReminderForm}
-                list="medicineList"
-                placeholder="Medicine name *"
-                required
-              />
-              <input
-                name="dosage"
-                value={reminderForm.dosage}
-                onChange={updateReminderForm}
-                placeholder="Dosage, e.g., 500mg after meal"
-              />
+              <input name="medicine_name" value={reminderForm.medicine_name} onChange={updateReminderForm} list="medicineList" placeholder="Medicine name *" required />
+              <input name="dosage" value={reminderForm.dosage} onChange={updateReminderForm} placeholder="Dosage, e.g., 500mg after meal" />
               <div className="two">
-                <input
-                  type="time"
-                  name="reminder_time"
-                  value={reminderForm.reminder_time}
-                  onChange={updateReminderForm}
-                  required
-                />
-                <select
-                  name="frequency"
-                  value={reminderForm.frequency}
-                  onChange={updateReminderForm}
-                  required
-                >
+                <input type="time" name="reminder_time" value={reminderForm.reminder_time} onChange={updateReminderForm} required />
+                <select name="frequency" value={reminderForm.frequency} onChange={updateReminderForm} required>
                   <option>Daily</option>
                   <option>Twice Daily</option>
                   <option>Three Times Daily</option>
@@ -701,107 +595,50 @@ export default function DrugInteractions() {
                 </select>
               </div>
               <div className="two">
-                <input
-                  type="date"
-                  name="start_date"
-                  value={reminderForm.start_date}
-                  onChange={updateReminderForm}
-                  required
-                />
-                <input
-                  type="date"
-                  name="end_date"
-                  value={reminderForm.end_date}
-                  onChange={updateReminderForm}
-                />
+                <input type="date" name="start_date" value={reminderForm.start_date} onChange={updateReminderForm} required />
+                <input type="date" name="end_date" value={reminderForm.end_date} onChange={updateReminderForm} />
               </div>
-              <textarea
-                name="notes"
-                value={reminderForm.notes}
-                onChange={updateReminderForm}
-                placeholder="Notes or instruction"
-              />
-              <button className="primary-btn" disabled={loading}>
-                Save Reminder
-              </button>
+              <textarea name="notes" value={reminderForm.notes} onChange={updateReminderForm} placeholder="Notes or instruction" />
+              <button className="primary-btn" disabled={loading}>Save Reminder</button>
             </form>
           )}
         </Modal>
       )}
 
       {showPrescription && (
-        <Modal
-          title="Add Prescription"
-          icon={<FileText size={18} />}
-          onClose={() => setShowPrescription(false)}
-        >
-          {user ? (
+        <Modal title="Add Prescription" icon={<FileText size={18} />} onClose={() => setShowPrescription(false)}>
+          {!user ? (
+            <div className="login-needed">Please sign in first to add prescriptions.</div>
+          ) : (
             <form className="modal-form" onSubmit={savePrescription}>
-              <h3>Save prescription record</h3>
-              <input
-                name="prescription_title"
-                value={prescriptionForm.prescription_title}
-                onChange={updatePrescriptionForm}
-                placeholder="Prescription title *"
-                required
-              />
-              <input
-                name="doctor_name"
-                value={prescriptionForm.doctor_name}
-                onChange={updatePrescriptionForm}
-                placeholder="Doctor name"
-              />
-              <input
-                type="date"
-                name="prescription_date"
-                value={prescriptionForm.prescription_date}
-                onChange={updatePrescriptionForm}
-              />
+              <input name="prescription_title" value={prescriptionForm.prescription_title} onChange={updatePrescriptionForm} placeholder="Prescription title *" required />
+              <input name="doctor_name" value={prescriptionForm.doctor_name} onChange={updatePrescriptionForm} placeholder="Doctor name" />
+              <input type="date" name="prescription_date" value={prescriptionForm.prescription_date} onChange={updatePrescriptionForm} />
               <label className={`upload-box ${prescriptionForm.prescription_file ? "has-file" : ""}`}>
-  <UploadCloud size={22} />
-
-  <strong>
-    {prescriptionForm.prescription_file
-      ? prescriptionForm.prescription_file.name
-      : "Upload prescription file"}
-  </strong>
-
-  <span>
-    {prescriptionForm.prescription_file
-      ? `${(prescriptionForm.prescription_file.size / 1024 / 1024).toFixed(2)} MB selected`
-      : "PDF, JPG, PNG, WEBP up to 5MB"}
-  </span>
-
-  <input
-    type="file"
-    name="prescription_file"
-    accept=".pdf,.jpg,.jpeg,.png,.webp"
-    onChange={updatePrescriptionForm}
-  />
-</label>
-              <textarea
-                name="notes"
-                value={prescriptionForm.notes}
-                onChange={updatePrescriptionForm}
-                placeholder="Notes"
-              />
+                <UploadCloud size={22} />
+                <strong>
+                  {prescriptionForm.prescription_file
+                    ? prescriptionForm.prescription_file.name
+                    : "Upload prescription file"}
+                </strong>
+                <span>
+                  {prescriptionForm.prescription_file
+                    ? `${(prescriptionForm.prescription_file.size / 1024 / 1024).toFixed(2)} MB selected`
+                    : "PDF, JPG, PNG, WEBP up to 5MB"}
+                </span>
+                <input type="file" name="prescription_file" accept=".pdf,.jpg,.jpeg,.png,.webp" onChange={updatePrescriptionForm} />
+              </label>
+              <textarea name="notes" value={prescriptionForm.notes} onChange={updatePrescriptionForm} placeholder="Notes. You can type medicine names here too." />
               <button className="primary-btn" disabled={loading}>
-                Save Prescription
+                {loading ? "Saving & Checking..." : "Save & Check Prescription"}
               </button>
             </form>
-          ) : (
-            <div className="login-needed">
-              Sign in to save a prescription record. You can still scan a file
-              and add detected medicines to cart below.
-            </div>
           )}
         </Modal>
       )}
 
       <datalist id="medicineList">
-        {medicineNames.map((name) => (
-          <option key={name} value={name} />
-        ))}
+        {medicineNames.map((name) => <option key={name} value={name} />)}
       </datalist>
     </section>
   );
@@ -824,17 +661,133 @@ function Modal({ title, icon, onClose, children }) {
     <div className="modal-backdrop">
       <div className="di-modal">
         <div className="modal-head">
-          <h2>
-            {icon}
-            {title}
-          </h2>
-          <button type="button" onClick={onClose}>
-            <X size={20} />
-          </button>
+          <h2>{icon}{title}</h2>
+          <button type="button" onClick={onClose}><X size={20} /></button>
         </div>
         {children}
       </div>
     </div>
+  );
+}
+
+function PrescriptionAnalysisModal({ analysis, onClose, onOpenReport }) {
+  const data = analysis?.data || {};
+  const report = data.interaction_report || {};
+  const detected = data.detected_medicines || [];
+  const interactions = report.results || [];
+  const comparison = report.comparison || [];
+  const hasEnoughMedicines = detected.length >= 2;
+  const hasConflict = interactions.length > 0;
+
+  return (
+    <Modal
+      title="Prescription Scan Result"
+      icon={<FileText size={18} />}
+      onClose={onClose}
+    >
+      <div className="prescription-analysis">
+        <div
+          className={`prescription-status ${
+            hasConflict ? "danger" : hasEnoughMedicines ? "safe" : "warning"
+          }`}
+        >
+          {hasConflict ? <AlertTriangle size={28} /> : <CheckCircle size={28} />}
+          <div>
+            <strong>
+              {hasConflict
+                ? "Possible medicine conflict found"
+                : hasEnoughMedicines
+                  ? "No listed major interaction found"
+                  : "Prescription saved, but more medicine names are needed"}
+            </strong>
+            <p>{analysis?.message}</p>
+          </div>
+        </div>
+
+        <div className="detected-box">
+          <h3>
+            <ClipboardList size={18} />
+            Detected Medicines
+          </h3>
+
+          <div className="detected-chips">
+            {detected.length ? (
+              detected.map((name) => <span key={name}>{name}</span>)
+            ) : (
+              <em>No medicine names detected automatically.</em>
+            )}
+          </div>
+        </div>
+
+        {hasConflict && (
+          <div className="detected-conflicts">
+            <h3>
+              <ShieldAlert size={18} />
+              Interaction Warnings
+            </h3>
+
+            {interactions.map((item, index) => (
+              <article
+                className={`interaction-result ${String(item.severity).toLowerCase()}`}
+                key={`${item.pair}-${index}`}
+              >
+                <span>{item.severity}</span>
+                <h3>{item.pair}</h3>
+                <p>{item.message}</p>
+                <strong>Recommendation: {item.recommendation}</strong>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {hasEnoughMedicines && !hasConflict && (
+          <div className="safe-result compact-safe">
+            <CheckCircle size={24} />
+            <div>
+              <strong>Safe in this local database</strong>
+              <p>
+                This does not guarantee medical safety. Ask a doctor or pharmacist
+                before combining medicines.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {comparison.length > 0 && (
+          <div className="mini-comparison">
+            <h3>
+              <Info size={18} />
+              Medicine Summary
+            </h3>
+            <div>
+              {comparison.slice(0, 4).map((medicine) => (
+                <article key={medicine.medicine_name}>
+                  <strong>{medicine.medicine_name}</strong>
+                  <span>{medicine.category}</span>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {data.original_file_name && (
+          <p className="analysis-file-name">
+            Uploaded file: <strong>{data.original_file_name}</strong>
+          </p>
+        )}
+
+        <div className="analysis-actions">
+          {hasEnoughMedicines && (
+            <button className="primary-btn" type="button" onClick={onOpenReport}>
+              Open Full Interaction Report
+            </button>
+          )}
+          <button className="ghost-btn" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -843,29 +796,19 @@ function ResultModal({ results, onClose }) {
   const comparison = results?.comparison || [];
 
   return (
-    <Modal
-      title="Drug Interaction Results"
-      icon={<ShieldCheck size={18} />}
-      onClose={onClose}
-    >
+    <Modal title="Drug Interaction Results" icon={<ShieldCheck size={18} />} onClose={onClose}>
       <div className="results-area">
         {results?.no_known_major_interaction ? (
           <div className="safe-result">
             <CheckCircle size={26} />
             <div>
               <strong>No listed major interaction found</strong>
-              <p>
-                This does not guarantee safety. Ask a doctor or pharmacist
-                before combining medicines.
-              </p>
+              <p>This does not guarantee safety. Ask a doctor or pharmacist before combining medicines.</p>
             </div>
           </div>
         ) : (
           items.map((item, index) => (
-            <article
-              className={`interaction-result ${item.severity.toLowerCase()}`}
-              key={`${item.pair}-${index}`}
-            >
+            <article className={`interaction-result ${item.severity.toLowerCase()}`} key={`${item.pair}-${index}`}>
               <span>{item.severity}</span>
               <h3>{item.pair}</h3>
               <p>{item.message}</p>
@@ -883,21 +826,11 @@ function ResultModal({ results, onClose }) {
             {comparison.map((medicine) => (
               <article key={medicine.medicine_name}>
                 <h4>{medicine.medicine_name}</h4>
-                <p>
-                  <b>Category:</b> {medicine.category}
-                </p>
-                <p>
-                  <b>Use:</b> {medicine.common_use}
-                </p>
-                <p>
-                  <b>Dose:</b> {medicine.usual_dose}
-                </p>
-                <p>
-                  <b>Side effects:</b> {medicine.side_effects}
-                </p>
-                <p>
-                  <b>Warning:</b> {medicine.warnings}
-                </p>
+                <p><b>Category:</b> {medicine.category}</p>
+                <p><b>Use:</b> {medicine.common_use}</p>
+                <p><b>Dose:</b> {medicine.usual_dose}</p>
+                <p><b>Side effects:</b> {medicine.side_effects}</p>
+                <p><b>Warning:</b> {medicine.warnings}</p>
               </article>
             ))}
           </div>
@@ -906,7 +839,6 @@ function ResultModal({ results, onClose }) {
     </Modal>
   );
 }
-
 
 const styles = `
 .di-page {
@@ -1141,7 +1073,7 @@ const styles = `
 .medicine-results {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   margin-top: 14px;
 }
 
@@ -1379,6 +1311,142 @@ const styles = `
   font-weight: 900;
 }
 
+.upload-box.has-file {
+  border-color: #2563eb;
+  background: linear-gradient(135deg, #eff6ff, #ecfdf5);
+}
+
+.upload-box.has-file strong {
+  color: #2563eb;
+  word-break: break-word;
+}
+
+.upload-box.has-file span {
+  color: #047857;
+}
+
+.prescription-analysis {
+  display: grid;
+  gap: 14px;
+}
+
+.prescription-status {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  border-radius: 22px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+}
+
+.prescription-status strong,
+.prescription-status p {
+  display: block;
+}
+
+.prescription-status p {
+  margin: 6px 0 0;
+  font-weight: 800;
+}
+
+.prescription-status.safe {
+  background: #ecfdf5;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.prescription-status.warning {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.prescription-status.danger {
+  background: #fef2f2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.detected-box,
+.detected-conflicts,
+.mini-comparison {
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #f8fafc;
+  padding: 16px;
+}
+
+.detected-box h3,
+.detected-conflicts h3,
+.mini-comparison h3 {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detected-chips {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.detected-chips span,
+.detected-chips em {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 950;
+  font-style: normal;
+}
+
+.detected-chips em {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.compact-safe {
+  padding: 16px;
+}
+
+.mini-comparison > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mini-comparison article {
+  border-radius: 16px;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+}
+
+.mini-comparison article strong,
+.mini-comparison article span {
+  display: block;
+}
+
+.mini-comparison article span {
+  margin-top: 4px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.analysis-file-name {
+  margin: 0;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.analysis-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .results-area {
   display: grid;
   gap: 14px;
@@ -1467,6 +1535,7 @@ const styles = `
   .di-stats,
   .di-side,
   .comparison-grid,
+  .mini-comparison > div,
   .two {
     grid-template-columns: 1fr;
     width: 100%;
@@ -1476,176 +1545,5 @@ const styles = `
   .mini-record {
     flex-direction: column;
   }
-}
-
-.prescription-auto-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 26px;
-  padding: 22px;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, .08);
-  display: grid;
-  gap: 16px;
-}
-
-.prescription-head span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #eff6ff;
-  color: #2563eb;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-weight: 950;
-  margin-bottom: 12px;
-}
-
-.prescription-head h2 {
-  margin: 0;
-  font-size: clamp(1.6rem, 4vw, 2.2rem);
-  letter-spacing: -.045em;
-}
-
-.prescription-head p {
-  color: #64748b;
-  font-weight: 700;
-}
-
-.prescription-upload-box {
-  border: 1px dashed #93c5fd;
-  background: linear-gradient(135deg, #eff6ff, #ecfdf5);
-  border-radius: 22px;
-  padding: 26px;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  gap: 8px;
-  color: #2563eb;
-  cursor: pointer;
-}
-
-.prescription-upload-box input {
-  display: none;
-}
-
-.prescription-upload-box strong {
-  color: #0f172a;
-}
-
-.prescription-upload-box small {
-  color: #64748b;
-  font-weight: 800;
-}
-
-.manual-text-box {
-  display: grid;
-  gap: 8px;
-  color: #334155;
-  font-weight: 900;
-}
-
-.manual-text-box textarea {
-  min-height: 90px;
-  border: 1px solid #dbe3ef;
-  border-radius: 16px;
-  padding: 12px;
-  font: inherit;
-  font-weight: 700;
-  resize: vertical;
-}
-
-.scan-cart-btn {
-  min-height: 52px;
-  border: none;
-  border-radius: 16px;
-  background: #2563eb;
-  color: white;
-  font-weight: 950;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 12px 24px rgba(37, 99, 235, .22);
-}
-
-.scan-cart-btn:disabled {
-  opacity: .65;
-  cursor: not-allowed;
-}
-
-.scan-result-card {
-  border: 1px solid #dbeafe;
-  background: #f8fafc;
-  border-radius: 20px;
-  padding: 16px;
-}
-
-.scan-result-card h3 {
-  margin: 0 0 12px;
-}
-
-.detected-list {
-  display: grid;
-  gap: 10px;
-}
-
-.detected-item {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-}
-
-.detected-item strong,
-.detected-item span {
-  display: block;
-}
-
-.detected-item span {
-  color: #64748b;
-  font-size: .85rem;
-  font-weight: 800;
-}
-
-.detected-item b {
-  color: #047857;
-}
-
-.drug-notice {
-  border-radius: 16px;
-  padding: 13px 16px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.drug-notice.success {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.drug-notice.error {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.upload-box.has-file {
-  border-color: #2563eb;
-  background: linear-gradient(135deg, #eff6ff, #ecfdf5);
-}
-
-.upload-box.has-file strong {
-  color: #2563eb;
-  word-break: break-word;
-}
-
-.upload-box.has-file span {
-  color: #047857;
 }
 `;
