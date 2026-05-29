@@ -1,9 +1,43 @@
 import express from "express";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
+import { fileURLToPath } from "url";
 import { pool } from "../db.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const complaintUploadDir = path.join(__dirname, "../uploads/bloodbank-complaints");
+
+if (!fs.existsSync(complaintUploadDir)) {
+  fs.mkdirSync(complaintUploadDir, { recursive: true });
+}
+
+const complaintStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, complaintUploadDir),
+  filename: (_req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, `${Date.now()}_${safeName}`);
+  },
+});
+
+const complaintUpload = multer({
+  storage: complaintStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error("Complaint attachment must be PDF, JPG, PNG, or WEBP."));
+    }
+
+    cb(null, true);
+  },
+});
 
 const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
@@ -157,6 +191,14 @@ async function setupBloodBankTables() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  try {
+    await pool.query("ALTER TABLE blood_complaints ADD COLUMN attachment VARCHAR(255) NULL");
+  } catch (error) {
+    if (error.code !== "ER_DUP_FIELDNAME" && error.errno !== 1060) {
+      throw error;
+    }
+  }
 }
 
 async function currentBloodBankUser(req, options = {}) {
@@ -729,7 +771,7 @@ router.post("/requests/:id/chat", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/complaints", requireAuth, async (req, res) => {
+router.post("/complaints", requireAuth, complaintUpload.single("attachment"), async (req, res) => {
   try {
     const me = await currentBloodBankUser(req, {
       createIfMissing: true,
@@ -745,16 +787,33 @@ router.post("/complaints", requireAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: "Please complete the complaint form." });
     }
 
+    const attachment = req.file ? `/uploads/bloodbank-complaints/${req.file.filename}` : null;
+
     await pool.query(
       "INSERT INTO blood_complaints (user_id, name, email, contact, description, attachment) VALUES (?, ?, ?, ?, ?, ?)",
-      [me.id, name, email, contact, description, null]
+      [me.id, name, email, contact, description, attachment]
     );
 
-    res.status(201).json({ success: true, message: "Complaint submitted successfully." });
+    res.status(201).json({
+      success: true,
+      message: attachment
+        ? "Complaint submitted successfully with attachment."
+        : "Complaint submitted successfully.",
+      data: { attachment },
+    });
   } catch (error) {
     console.error("Complaint submit error:", error);
     res.status(500).json({ success: false, message: "Could not submit complaint." });
   }
+});
+
+router.use((error, _req, res, _next) => {
+  console.error("Blood bank route error:", error);
+
+  return res.status(500).json({
+    success: false,
+    message: error.message || "Blood Bank service error.",
+  });
 });
 
 export default router;

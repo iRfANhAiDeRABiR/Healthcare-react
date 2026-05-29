@@ -12,6 +12,7 @@ import {
   Search,
   Send,
   Siren,
+  UploadCloud,
   Users,
   X,
 } from "lucide-react";
@@ -59,6 +60,7 @@ const emptyComplaint = {
   email: "",
   contact: "",
   description: "",
+  attachment: null,
 };
 
 const emptyDirectRequest = {
@@ -271,8 +273,12 @@ export default function BloodBanksPhp() {
   }
 
   function updateComplaintField(event) {
-    const { name, value } = event.target;
-    setComplaintForm((current) => ({ ...current, [name]: value }));
+    const { name, value, files, type } = event.target;
+
+    setComplaintForm((current) => ({
+      ...current,
+      [name]: type === "file" ? files?.[0] || null : value,
+    }));
   }
 
   function updateDirectField(event) {
@@ -355,10 +361,22 @@ export default function BloodBanksPhp() {
   async function submitComplaint(event) {
     event.preventDefault();
     if (!requireSignedIn()) return;
+
     await safeLoad(async () => {
-      const response = await api.post("/bloodbank/complaints", complaintForm);
+      const formData = new FormData();
+
+      Object.entries(complaintForm).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== "") {
+          formData.append(key, value);
+        }
+      });
+
+      const response = await api.post("/bloodbank/complaints", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       setNotice({ type: "success", message: response.data.message || "Complaint submitted." });
-      setComplaintForm((current) => ({ ...current, description: "" }));
+      setComplaintForm((current) => ({ ...current, description: "", attachment: null }));
       setView("dashboard");
     }, "Could not submit complaint.");
   }
@@ -581,7 +599,20 @@ export default function BloodBanksPhp() {
               <Field label="Email *" full><input className="bb-input" type="email" name="email" value={complaintForm.email} onChange={updateComplaintField} required /></Field>
               <Field label="Contact *" full><input className="bb-input" name="contact" value={complaintForm.contact} onChange={updateComplaintField} required /></Field>
               <Field label="Description *" full><textarea className="bb-textarea" name="description" value={complaintForm.description} onChange={updateComplaintField} required /></Field>
-              <div className="bb-field full center"><button className="bb-btn" disabled={loading}>Submit Complaint</button></div>
+              <Field label="Attachment" full>
+                <label className={`bb-upload-box ${complaintForm.attachment ? "has-file" : ""}`}>
+                  <UploadCloud size={22} />
+                  <strong>{complaintForm.attachment ? complaintForm.attachment.name : "Add complaint attachment"}</strong>
+                  <span>{complaintForm.attachment ? `${(complaintForm.attachment.size / 1024 / 1024).toFixed(2)} MB selected` : "PDF, JPG, PNG, or WEBP up to 5MB"}</span>
+                  <input
+                    type="file"
+                    name="attachment"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    onChange={updateComplaintField}
+                  />
+                </label>
+              </Field>
+              <div className="bb-field full center"><button className="bb-btn" disabled={loading}>{loading ? "Submitting..." : "Submit Complaint"}</button></div>
             </form>
           </div>
         )}
@@ -630,4 +661,170 @@ function ChatRow({ chat, profile, onOpen }) {
 
 const styles = `
 .bb-react-page{min-height:100%;background:#f4f6f8;color:#0f172a}.bb-wrap{max-width:1200px;margin:0 auto;padding:28px 16px 70px}.bb-card{background:#fff;border-radius:16px;box-shadow:0 15px 35px rgba(15,23,42,.08);padding:26px;margin-bottom:22px}.bb-login-note{display:flex;justify-content:space-between;align-items:center;gap:16px}.bb-small{font-size:13px;color:#475569}.bb-btn{border:none;border-radius:10px;padding:13px 18px;font-weight:800;cursor:pointer;background:#e91b2f;color:#fff;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px}.bb-btn:disabled{opacity:.6;cursor:not-allowed}.bb-yellow{background:#f5b400}.bb-gray{background:#64748b}.bb-green{background:#16a34a}.bb-outline-btn{background:#fff;color:#e91b2f;border:1px solid #e91b2f}.bb-alert{border-radius:12px;padding:13px 16px;margin-bottom:18px;font-weight:800}.bb-alert.success{background:#dcfce7;color:#166534}.bb-alert.error{background:#fee2e2;color:#991b1b}.bb-modern-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:26px}.bb-modern-head-left h1{margin:0;font-size:2rem;font-weight:800;color:#0f172a;line-height:1.1}.bb-modern-head-left h1 span{color:#e91b2f}.bb-modern-head-left p{margin:6px 0 0;color:#475569;font-size:14px}.bb-complaint-btn{background:#e91b2f;color:#fff;border:none;border-radius:8px;padding:13px 18px;font-weight:900;box-shadow:0 14px 24px rgba(233,27,47,.22);cursor:pointer}.bb-modern-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}.bb-modern-stat{background:#fff;border-radius:16px;padding:20px 18px;box-shadow:0 8px 24px rgba(15,23,42,.08);display:flex;justify-content:space-between;align-items:flex-start;min-height:96px;position:relative;overflow:hidden}.bb-modern-stat:before{content:"";position:absolute;left:0;top:0;width:4px;height:100%;border-radius:10px}.bb-modern-stat.red:before{background:#ef4444}.bb-modern-stat.green:before{background:#22c55e}.bb-modern-stat.blue:before{background:#3b82f6}.bb-modern-stat.purple:before{background:#a855f7}.bb-modern-stat-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center}.bb-modern-stat.red .bb-modern-stat-icon{background:#fee2e2;color:#ef4444}.bb-modern-stat.green .bb-modern-stat-icon{background:#dcfce7;color:#22c55e}.bb-modern-stat.blue .bb-modern-stat-icon{background:#dbeafe;color:#3b82f6}.bb-modern-stat.purple .bb-modern-stat-icon{background:#f3e8ff;color:#a855f7}.bb-modern-stat-text{flex:1;margin-left:14px}.bb-modern-stat-value{font-size:2rem;font-weight:800;color:#0f172a;line-height:1;text-align:right}.bb-modern-stat-label{margin-top:8px;font-size:13px;color:#475569}.bb-modern-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:22px}.bb-modern-action{border:none;text-align:left;background:#fff;border-radius:16px;padding:20px;text-decoration:none;color:#0f172a;box-shadow:0 8px 24px rgba(15,23,42,.08);display:flex;align-items:center;justify-content:space-between;gap:16px;transition:.2s ease;cursor:pointer}.bb-modern-action:hover{transform:translateY(-2px)}.bb-modern-action-left{display:flex;align-items:center;gap:14px}.bb-modern-action-icon{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center}.bb-modern-action.red .bb-modern-action-icon{background:#fee2e2;color:#ef4444}.bb-modern-action.blue .bb-modern-action-icon{background:#dbeafe;color:#3b82f6}.bb-modern-action.green .bb-modern-action-icon{background:#dcfce7;color:#22c55e}.bb-modern-action.purple .bb-modern-action-icon{background:#f3e8ff;color:#a855f7}.bb-modern-action h3{margin:0 0 5px;font-size:1.2rem;font-weight:800;color:#0f172a}.bb-modern-action p{margin:0;font-size:13px;color:#475569}.bb-modern-badge{background:#ef233c;color:#fff;font-size:11px;font-weight:800;padding:5px 9px;border-radius:999px}.bb-profile-strip{display:flex;align-items:center;justify-content:space-between;gap:16px}.bb-emergency-panel{background:#fff;border-radius:16px;box-shadow:0 15px 35px rgba(15,23,42,.08);padding:26px}.bb-emergency-panel h2{margin:0 0 18px}.bb-emergency-list{display:grid;gap:12px}.bb-emergency-item{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px;border-radius:14px;border:1px solid #fee2e2;background:#fff7f7}.bb-emergency-item.orangeish{background:#fff7ed;border-color:#fed7aa}.bb-emergency-info h4{margin:0 0 8px}.bb-emergency-meta{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:#475569}.bb-group-pill,.bb-badge{display:inline-flex;align-items:center;justify-content:center;background:#e91b2f;color:#fff;border-radius:999px;padding:5px 9px;font-weight:900;font-size:12px}.bb-urgent-pill{background:#991b1b;color:#fff;border-radius:999px;padding:5px 9px;font-weight:900;font-size:11px}.bb-respond-btn{background:#e91b2f;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:900;cursor:pointer}.bb-field{display:flex;flex-direction:column;gap:7px}.bb-field label{font-size:13px;font-weight:800;color:#334155}.bb-field.full{grid-column:1/-1}.bb-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.bb-input,.bb-select,.bb-textarea{width:100%;border:1px solid #d9e1ea;border-radius:10px;padding:12px 13px;font:inherit;background:#fff;color:#0f172a}.bb-textarea{min-height:92px;resize:vertical}.bb-check{display:flex!important;align-items:center;gap:8px;margin-top:12px}.bb-centered-card{max-width:900px;margin-left:auto;margin-right:auto}.bb-complaint-card{max-width:760px;margin-left:auto;margin-right:auto}.bb-red-title{text-align:center;color:#e91b2f}.center-text{text-align:center}.center{align-items:center}.bb-back{border:none;background:transparent;color:#e91b2f;font-weight:900;margin-bottom:14px;cursor:pointer}.bb-search-groups{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}.bb-search-groups button{border:1px solid #fecaca;background:#fff;color:#e91b2f;border-radius:999px;padding:8px 13px;font-weight:900;cursor:pointer}.bb-search-groups button.active{background:#e91b2f;color:#fff}.bb-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:12px;align-items:end}.bb-filter-actions{display:flex;gap:8px}.bb-filter-summary{margin:12px 0;color:#64748b;font-size:13px;font-weight:700}.bb-donor{display:grid;grid-template-columns:1.3fr 1fr auto;gap:18px;align-items:center;background:#fff;border-radius:13px;padding:20px;box-shadow:0 5px 14px rgba(2,6,23,.10);margin-bottom:18px}.bb-donor h3{margin:0 0 6px}.bb-status{display:inline-flex;margin-left:6px;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:900}.bb-accepted{background:#dcfce7;color:#166534}.bb-declined{background:#fee2e2;color:#991b1b}.bb-pending{background:#fef3c7;color:#92400e}.bb-inline-actions{display:flex;gap:8px;flex-wrap:wrap}.bb-unread{color:#e91b2f!important;font-weight:900!important}.bb-chat-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}.bb-chat-box,.bb-chat-side-card{background:#fff;border-radius:16px;box-shadow:0 15px 35px rgba(15,23,42,.08);overflow:hidden;border:1px solid #e5e7eb}.bb-chat-head{padding:18px 20px;background:linear-gradient(135deg,#e91b2f,#b91c1c);color:#fff;display:flex;justify-content:space-between;gap:14px;align-items:center}.bb-chat-head h2{display:flex;align-items:center;gap:8px;margin:0;font-size:1.15rem}.bb-chat-head p{margin:4px 0 0;color:rgba(255,255,255,.85);font-size:13px}.bb-chat-messages{height:470px;overflow-y:auto;padding:18px;background:#f8fafc;display:flex;flex-direction:column;gap:10px}.bb-chat-message{max-width:76%;padding:11px 13px;border-radius:14px;background:#fff;border:1px solid #e5e7eb;box-shadow:0 4px 12px rgba(15,23,42,.05)}.bb-chat-message.me{align-self:flex-end;background:#e91b2f;color:#fff;border-color:#e91b2f}.bb-chat-sender{font-size:12px;font-weight:900;margin-bottom:5px;opacity:.86}.bb-chat-text{white-space:pre-wrap;line-height:1.45;font-size:14px}.bb-chat-time{margin-top:6px;font-size:11px;opacity:.72;text-align:right}.bb-chat-form{padding:14px;display:grid;grid-template-columns:1fr auto;gap:10px;background:#fff;border-top:1px solid #e5e7eb}.bb-chat-side-card{padding:20px}.bb-chat-info-row{margin-bottom:10px;font-size:13px;color:#475569}.bb-chat-info-row strong{display:block;color:#0f172a;margin-bottom:2px}.bb-call-btn{width:100%;margin-top:10px;background:#16a34a}.bb-modal{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:4000;display:flex;align-items:center;justify-content:center;padding:18px}.bb-modal-card{position:relative;max-width:760px;width:100%;background:#fff;border-radius:18px;padding:24px;max-height:92vh;overflow-y:auto}.bb-modal-close{position:absolute;top:12px;right:12px;border:none;background:#fee2e2;color:#991b1b;border-radius:999px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer}.no-shadow{box-shadow:none;padding:16px;margin:0}@media(max-width:900px){.bb-modern-stats{grid-template-columns:repeat(2,1fr)}.bb-modern-actions,.bb-form-grid,.bb-donor,.bb-filter-grid,.bb-chat-layout{grid-template-columns:1fr}.bb-modern-head,.bb-profile-strip,.bb-login-note{flex-direction:column;align-items:flex-start}.bb-emergency-item{flex-direction:column;align-items:flex-start}.bb-chat-form{grid-template-columns:1fr}}@media(max-width:600px){.bb-modern-stats{grid-template-columns:1fr}.bb-modern-stat{flex-direction:column;gap:10px}.bb-modern-stat-text{margin-left:0;width:100%}.bb-modern-stat-value{text-align:left}.bb-modern-action{align-items:flex-start}.bb-chat-message{max-width:90%}}.bb-active-donor{border-left:5px solid #16a34a;background:linear-gradient(135deg,#ffffff,#f0fdf4)}.bb-active-donor .bb-status.bb-accepted{margin-left:8px;background:#dcfce7;color:#166534}
+
+
+/* ===== FORCE MODERN BLOOD BANK FORM CONTROLS ===== */
+.bb-card,
+.bb-donor,
+.bb-modal-card,
+.bb-chat-box,
+.bb-chat-side-card {
+  border: 1px solid rgba(226, 232, 240, .95) !important;
+  box-shadow: 0 20px 52px rgba(15, 23, 42, .08) !important;
+}
+
+.bb-input,
+.bb-select,
+.bb-textarea {
+  min-height: 52px !important;
+  border-radius: 16px !important;
+  border: 1px solid #dbe3ef !important;
+  background: rgba(255,255,255,.96) !important;
+  color: #0f172a !important;
+  font-weight: 850 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8) !important;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease !important;
+}
+
+.bb-textarea {
+  min-height: 118px !important;
+}
+
+.bb-input:focus,
+.bb-select:focus,
+.bb-textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, .12) !important;
+}
+
+.bb-select {
+  appearance: none !important;
+  background-image: linear-gradient(45deg, transparent 50%, #2563eb 50%), linear-gradient(135deg, #2563eb 50%, transparent 50%) !important;
+  background-position: calc(100% - 22px) 22px, calc(100% - 15px) 22px !important;
+  background-size: 7px 7px, 7px 7px !important;
+  background-repeat: no-repeat !important;
+  padding-right: 42px !important;
+}
+
+.bb-check {
+  position: relative !important;
+  min-height: 54px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  padding: 0 18px 0 62px !important;
+  margin-top: 0 !important;
+  border: 1px solid #dbeafe !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc) !important;
+  color: #1e3a8a !important;
+  font-size: .92rem !important;
+  font-weight: 950 !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  box-shadow: 0 12px 28px rgba(37, 99, 235, .08) !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease !important;
+}
+
+.bb-check.full {
+  grid-column: 1 / -1 !important;
+}
+
+.bb-check:hover {
+  transform: translateY(-1px) !important;
+  border-color: #bfdbfe !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, .13) !important;
+}
+
+.bb-check input[type="checkbox"] {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.bb-check::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 16px !important;
+  width: 34px !important;
+  height: 20px !important;
+  border-radius: 999px !important;
+  background: #cbd5e1 !important;
+  box-shadow: inset 0 2px 6px rgba(15,23,42,.18) !important;
+  transition: .2s ease !important;
+}
+
+.bb-check::after {
+  content: "" !important;
+  position: absolute !important;
+  left: 19px !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  box-shadow: 0 2px 8px rgba(15,23,42,.22) !important;
+  transition: .2s ease !important;
+}
+
+.bb-check:has(input[type="checkbox"]:checked) {
+  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+  border-color: transparent !important;
+  color: white !important;
+}
+
+.bb-check:has(input[type="checkbox"]:checked)::before {
+  background: rgba(255,255,255,.32) !important;
+}
+
+.bb-check:has(input[type="checkbox"]:checked)::after {
+  transform: translateX(14px) !important;
+  background: #fff !important;
+}
+
+.bb-upload-box {
+  position: relative !important;
+  min-height: 134px !important;
+  border: 2px dashed #bfdbfe !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, #eff6ff, #f8fafc) !important;
+  display: grid !important;
+  place-items: center !important;
+  align-content: center !important;
+  gap: 8px !important;
+  padding: 20px !important;
+  color: #2563eb !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+
+.bb-upload-box:hover,
+.bb-upload-box.has-file {
+  transform: translateY(-2px) !important;
+  border-color: #2563eb !important;
+  background: linear-gradient(135deg, #dbeafe, #ecfdf5) !important;
+  box-shadow: 0 18px 38px rgba(37, 99, 235, .14) !important;
+}
+
+.bb-upload-box strong {
+  color: #0f172a !important;
+  font-size: 1rem !important;
+  word-break: break-word !important;
+}
+
+.bb-upload-box span {
+  color: #64748b !important;
+  font-size: .86rem !important;
+  font-weight: 800 !important;
+}
+
+.bb-upload-box input[type="file"] {
+  position: absolute !important;
+  inset: 0 !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
+}
+
 `;
