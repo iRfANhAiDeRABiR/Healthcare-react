@@ -105,6 +105,114 @@ function normalizeCartProduct(product) {
   };
 }
 
+
+const scanCartSampleProducts = [
+  ["Paracetamol 500mg", "Pain Relief", "Square Pharmaceuticals", 3.0, 2.5, 17, 1, "assets/images/paracetamol.jpg"],
+  ["Omeprazole 20mg", "Gastric", "Incepta Pharmaceuticals", 10.0, 8.5, 15, 0, "assets/images/omeprazole.jpg"],
+  ["Metformin 500mg", "Diabetes", "Beximco Pharmaceuticals", 5.0, 4.25, 15, 1, "assets/images/metformin.jpg"],
+  ["Atorvastatin 20mg", "Cardiovascular", "Renata Limited", 15.0, 12.75, 15, 0, "assets/images/atorvastatin.jpg"],
+  ["Amoxicillin 500mg", "Antibiotics", "ACI Limited", 8.0, 6.8, 15, 0, "assets/images/amoxicillin.jpg"],
+  ["Losartan 50mg", "Cardiovascular", "Square Pharmaceuticals", 11.0, 9.35, 15, 1, "assets/images/losartan.jpg"],
+  ["Cetirizine 10mg", "Allergy", "Incepta Pharmaceuticals", 4.0, 3.4, 15, 0, "assets/images/cetirizine.jpg"],
+  ["Vitamin D3 1000 IU", "Vitamins", "Beximco Pharmaceuticals", 18.0, 15.3, 15, 1, "assets/images/vitamin-d3.jpg"],
+  ["Amlodipine 5mg", "Cardiovascular", "Renata Limited", 9.0, 7.65, 15, 0, "assets/images/amlodipine.jpg"],
+  ["Azithromycin 500mg", "Antibiotics", "Square Pharmaceuticals", 30.0, 25.5, 15, 1, "assets/images/azithromycin.jpg"],
+  ["Montelukast 10mg", "Respiratory", "ACI Limited", 21.0, 17.85, 15, 0, "assets/images/montelukast.jpg"],
+  ["Folic Acid 5mg", "Vitamins", "Incepta Pharmaceuticals", 3.0, 2.55, 15, 1, "assets/images/folic-acid.jpg"],
+  ["Ranitidine 150mg", "Gastric", "Beximco Pharmaceuticals", 5.0, 4.25, 15, 0, "assets/images/ranitidine.jpg"],
+  ["Diclofenac 50mg", "Pain Relief", "Renata Limited", 7.0, 5.95, 15, 1, "assets/images/diclofenac.jpg"],
+  ["Calcium Carbonate 500mg", "Supplements", "Square Pharmaceuticals", 10.0, 8.5, 15, 0, "assets/images/calcium.jpg"],
+  ["Fluconazole 150mg", "Antifungal", "ACI Limited", 50.0, 42.5, 15, 1, "assets/images/fluconazole.jpg"],
+];
+
+async function scanCartTableHasColumn(table, column) {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) AS count
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [table, column]
+  );
+
+  return Number(rows[0]?.count || 0) > 0;
+}
+
+async function scanCartAddColumnIfMissing(table, column, definition) {
+  if (!(await scanCartTableHasColumn(table, column))) {
+    await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+  }
+}
+
+async function ensureScanCartProductsReady() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      sku VARCHAR(100) NULL,
+      image VARCHAR(255) NULL,
+      mrp DECIMAL(10,2) NOT NULL,
+      price DECIMAL(10,2) NOT NULL,
+      discount INT NOT NULL DEFAULT 0,
+      is_special_offer TINYINT(1) DEFAULT 0,
+      in_stock TINYINT(1) DEFAULT 1,
+      stock_quantity INT DEFAULT 100,
+      category VARCHAR(100) NOT NULL,
+      manufacturer VARCHAR(255) NOT NULL,
+      description TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await scanCartAddColumnIfMissing("products", "sku", "VARCHAR(100) NULL AFTER name");
+  await scanCartAddColumnIfMissing("products", "description", "TEXT NULL AFTER manufacturer");
+  await scanCartAddColumnIfMissing("products", "in_stock", "TINYINT(1) DEFAULT 1 AFTER is_special_offer");
+  await scanCartAddColumnIfMissing("products", "stock_quantity", "INT DEFAULT 100 AFTER in_stock");
+
+  const [countRows] = await pool.query("SELECT COUNT(*) AS count FROM products");
+
+  if (Number(countRows[0]?.count || 0) === 0) {
+    await pool.query(
+      `INSERT INTO products
+       (name, category, manufacturer, mrp, price, discount, is_special_offer, image)
+       VALUES ?`,
+      [
+        scanCartSampleProducts.map(([name, category, manufacturer, mrp, price, discount, special, image]) => [
+          name,
+          category,
+          manufacturer,
+          mrp,
+          price,
+          discount,
+          special,
+          image,
+        ]),
+      ]
+    );
+  }
+}
+
+async function extractPrescriptionTextWithRetry(file) {
+  let text = "";
+
+  try {
+    text = await extractPrescriptionText(file);
+  } catch (ocrError) {
+    console.error("Prescription OCR error:", ocrError);
+  }
+
+  if (!normalizePrescriptionText(text)) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      text = await extractPrescriptionText(file);
+    } catch (retryError) {
+      console.error("Prescription OCR retry error:", retryError);
+    }
+  }
+
+  return text || "";
+}
+
 async function extractPrescriptionText(file) {
   if (!file) return "";
 
@@ -983,15 +1091,10 @@ router.post("/prescriptions/scan-cart", optionalAuth, upload.single("prescriptio
     }
 
     const manualText = clean(req.body.prescription_text);
-    let extractedText = "";
-
-    try {
-      extractedText = await extractPrescriptionText(req.file);
-    } catch (ocrError) {
-      console.error("Prescription OCR error:", ocrError);
-    }
-
+    const extractedText = await extractPrescriptionTextWithRetry(req.file);
     const combinedText = `${manualText}\n${extractedText}\n${req.file.originalname}`;
+
+    await ensureScanCartProductsReady();
 
     const [products] = await pool.query(`
       SELECT *
@@ -1000,7 +1103,18 @@ router.post("/prescriptions/scan-cart", optionalAuth, upload.single("prescriptio
       ORDER BY name ASC
     `);
 
-    const matchedProducts = detectPrescriptionProducts(combinedText, products);
+    let matchedProducts = detectPrescriptionProducts(combinedText, products);
+
+    if (matchedProducts.length === 0 && normalizePrescriptionText(extractedText)) {
+      const [freshProducts] = await pool.query(`
+        SELECT *
+        FROM products
+        WHERE in_stock = 1
+        ORDER BY name ASC
+      `);
+
+      matchedProducts = detectPrescriptionProducts(combinedText, freshProducts);
+    }
 
     return res.json({
       success: true,
