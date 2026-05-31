@@ -42,7 +42,7 @@ Healthcare-react/
 
 ### Prerequisites
 
-- **Node.js 18+**
+- **Node.js 18.x or 20.x**
 - **MySQL** (database: `healthcare_service`)
 
 ### 1) Backend
