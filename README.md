@@ -60,7 +60,7 @@ DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=
 DB_NAME=healthcare_service
-JWT_SECRET=change_this_secret_key_later
+JWT_SECRET=replace_with_a_strong_secret
 CLIENT_URL=http://localhost:5173
 ```
 
@@ -127,4 +127,5 @@ npm run build   # Production build
 ## 📝 Notes
 
 - Admin/manager credentials and portal URLs are configured in `backend/.env`.
+- Replace all JWT and admin secrets with strong values before deployment.
 - Uploaded files are stored in `backend/uploads`.
