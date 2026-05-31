@@ -634,7 +634,7 @@ async function submitUserLocation(event) {
         </div>
 
         <div className="filter-panel">
-          <div className={`search-field ${loading ? "is-searching" : ""}`}> 
+          <div className="search-field">
             <Search size={18} />
             <input
               name="search"
@@ -712,11 +712,7 @@ async function submitUserLocation(event) {
         </div>
 
         {loading ? (
-          <div className="empty-card ambulance-loading">
-            <span className="loading-ring" />
-            <strong>Searching ambulances...</strong>
-            <small>Finding verified services that match your filters</small>
-          </div>
+          <div className="empty-card">Loading ambulance services...</div>
         ) : services.length === 0 ? (
           <div className="empty-card">No ambulance services found.</div>
         ) : (
@@ -734,194 +730,273 @@ async function submitUserLocation(event) {
       </div>
 
       {selected && (
-        <div className="modal-overlay">
-          <div className="details-modal">
+  <div className="modal-overlay">
+    <div className="details-modal details-modal-modern">
+      <button className="modal-close" onClick={() => setSelected(null)}>
+        <X size={20} />
+      </button>
 
+      <div className="details-modern-hero">
+        <div>
+          <span className={`type-badge ${selected.service_type}`}>
+            {serviceLabel(selected.service_type)}
+          </span>
 
-            <button className="modal-close" onClick={() => setSelected(null)}>
-              <X size={20} />
-            </button>
-            <form className="review-form" onSubmit={submitUserLocation}>
-  <h3>Share Your Location With Ambulance Manager</h3>
+          <h2>{selected.service_name}</h2>
 
-  <MapBox
-  latitude={shareForm.latitude}
-  longitude={shareForm.longitude}
-  title="Your Pickup Location"
-  note={shareForm.message || "This location will be shared with the ambulance manager."}
-/>
+          <p>
+            <MapPin size={16} />
+            {selected.area}, {selected.district}, {selected.division}
+          </p>
+        </div>
 
-<div className="location-meta">
-  <span>
-    <strong>Latitude:</strong> {shareForm.latitude || "Not set"}
-  </span>
-  <span>
-    <strong>Longitude:</strong> {shareForm.longitude || "Not set"}
-  </span>
-</div>
+        <a className="call-main modern-call-main" href={`tel:${telNumber(selected.phone_primary)}`}>
+          <Phone size={18} />
+          Call Now
+        </a>
+      </div>
 
-<button type="button" className="details-btn" onClick={useCurrentUserLocation}>
-  <MapPin size={16} />
-  Use My Current Location
-</button>
-
-  <textarea
-    name="message"
-    value={shareForm.message}
-    onChange={updateShareForm}
-    placeholder="Add pickup note, landmark, emergency details..."
-  />
-
-  <button className="submit-btn green" disabled={submitting}>
-    <MapPin size={16} />
-    Share Location
-  </button>
-</form>
-
-            <div className="details-head">
-              <div>
-                <span className={`type-badge ${selected.service_type}`}>
-                  {serviceLabel(selected.service_type)}
-                </span>
-                <h2>{selected.service_name}</h2>
-                <p>
-                  {selected.area}, {selected.district}, {selected.division}
-                </p>
-              </div>
-
-              <a className="call-main" href={`tel:${telNumber(selected.phone_primary)}`}>
-                <Phone size={18} />
-                Call Now
-              </a>
+      <div className="details-modern-grid">
+        <section className="details-card modern-share-card">
+          <div className="section-title-row">
+            <div>
+              <h3>Share Pickup Location</h3>
+              <p>Send your live pickup location to the ambulance manager.</p>
             </div>
+            <span className="soft-icon">
+              <Navigation size={18} />
+            </span>
+          </div>
 
-            <div className="details-grid">
-              <div className="details-card">
-                <h3>Service Details</h3>
-                <Info label="Availability" value={availabilityLabel(selected.availability)} />
-                <Info label="Response Window" value={responseWindow(selected.service_type)} />
-                <Info label="Base Charge" value={`৳${money(selected.base_charge)}`} />
-                <Info label="Price / KM" value={`৳${money(selected.price_per_km)}`} />
-                <Info label="Example 10 KM Fare" value={`৳${money(selected.example_fare_10km)}`} />
-                <Info label="Primary Phone" value={selected.phone_primary} />
-                <Info label="Secondary Phone" value={selected.phone_secondary || "Not provided"} />
-                <Info label="Contact Person" value={selected.contact_person || "Not provided"} />
-              </div>
+          <MapBox
+            latitude={shareForm.latitude}
+            longitude={shareForm.longitude}
+            title="Your Pickup Location"
+            note={shareForm.message || "This location will be shared with the ambulance manager."}
+          />
 
-              <div className="details-card">
-  <h3>Ambulance Live Location</h3>
-
-  <MapBox
-    latitude={ambulanceLatitude}
-    longitude={ambulanceLongitude}
-    title={selected.service_name}
-    note={ambulanceLocationNote}
-  />
-
-  <p className="address-text">{selected.address || "Address not provided."}</p>
-
-  {ambulanceLatitude && ambulanceLongitude && (
-    <a
-      className="map-link"
-      href={`https://www.google.com/maps?q=${ambulanceLatitude},${ambulanceLongitude}`}
-      target="_blank"
-      rel="noreferrer"
-    >
-      <MapPin size={16} />
-      Open Full Map
-    </a>
-  )}
-
-  <h3>Equipment</h3>
-  <div className="equipment-list">
-    {selected.equipment_items?.map((item) => (
-      <span key={item}>{item}</span>
-    ))}
-  </div>
-</div>
-            </div>
-
-            <div className="details-card">
-              <h3>Description</h3>
-              <p>{selected.description || "No description added."}</p>
-            </div>
-
-            <div className="details-grid">
-              <div className="details-card">
-                <h3>Recent Messages</h3>
-                {selectedDetails?.messages?.length ? (
-                  <div className="mini-list">
-                    {selectedDetails.messages.map((message) => (
-                      <div key={message.id}>
-                        <strong>{message.sender_name}</strong>
-                        <p>{message.message}</p>
-                        <small>{formatDate(message.created_at)} · {message.message_type}</small>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="muted">No public messages yet.</p>
-                )}
-              </div>
-
-              <div className="details-card">
-                <h3>Reviews</h3>
-                {selectedDetails?.reviews?.length ? (
-                  <div className="mini-list">
-                    {selectedDetails.reviews.map((review) => (
-                      <div key={review.id}>
-                        <strong>{review.reviewer_name}</strong>
-                        <p>{"★".repeat(Number(review.rating || 0))} {review.review_text}</p>
-                        <small>{formatDate(review.service_date || review.created_at)}</small>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="muted">No reviews yet.</p>
-                )}
-              </div>
-            </div>
-
-            <form className="review-form" onSubmit={submitReview}>
-              <h3>Add Review</h3>
-
-              <div className="form-row">
-                <input
-                  name="reviewer_name"
-                  value={reviewForm.reviewer_name}
-                  onChange={updateReviewForm}
-                  placeholder="Your name"
-                  required
-                />
-                <input
-                  name="reviewer_phone"
-                  value={reviewForm.reviewer_phone}
-                  onChange={updateReviewForm}
-                  placeholder="Phone"
-                />
-                <select name="rating" value={reviewForm.rating} onChange={updateReviewForm}>
-                  <option value="5">5 Stars</option>
-                  <option value="4">4 Stars</option>
-                  <option value="3">3 Stars</option>
-                  <option value="2">2 Stars</option>
-                  <option value="1">1 Star</option>
-                </select>
-              </div>
-
-              <textarea
-                name="review_text"
-                value={reviewForm.review_text}
-                onChange={updateReviewForm}
-                placeholder="Write your experience..."
+          <form className="modern-share-form" onSubmit={submitUserLocation}>
+            <div className="form-row">
+              <input
+                name="sender_name"
+                value={shareForm.sender_name}
+                onChange={updateShareForm}
+                placeholder="Your name *"
+                required
               />
 
-              <button className="submit-btn" disabled={submitting}>
-                Submit Review
-              </button>
-            </form>
+              <input
+                name="sender_phone"
+                value={shareForm.sender_phone}
+                onChange={updateShareForm}
+                placeholder="Your phone *"
+                required
+              />
+            </div>
+
+            <input
+              name="sender_email"
+              value={shareForm.sender_email}
+              onChange={updateShareForm}
+              placeholder="Your email"
+            />
+
+            <div className="location-meta">
+              <span>
+                <strong>Latitude:</strong> {shareForm.latitude || "Not set"}
+              </span>
+              <span>
+                <strong>Longitude:</strong> {shareForm.longitude || "Not set"}
+              </span>
+            </div>
+
+            <button type="button" className="details-btn modern-location-btn" onClick={useCurrentUserLocation}>
+              <MapPin size={16} />
+              Use My Current Location
+            </button>
+
+            <textarea
+              name="message"
+              value={shareForm.message}
+              onChange={updateShareForm}
+              placeholder="Add pickup note, landmark, emergency details..."
+            />
+
+            <button className="submit-btn green modern-share-submit" disabled={submitting}>
+              <MapPin size={16} />
+              {submitting ? "Sharing..." : "Share Location"}
+            </button>
+          </form>
+        </section>
+
+        <section className="details-card modern-service-card">
+          <div className="section-title-row">
+            <div>
+              <h3>Service Details</h3>
+              <p>Pricing, availability, and contact information.</p>
+            </div>
+            <span className="soft-icon">
+              <AmbulanceIcon size={18} />
+            </span>
           </div>
+
+          <Info label="Availability" value={availabilityLabel(selected.availability)} />
+          <Info label="Response Window" value={responseWindow(selected.service_type)} />
+          <Info label="Base Charge" value={`৳${money(selected.base_charge)}`} />
+          <Info label="Price / KM" value={`৳${money(selected.price_per_km)}`} />
+          <Info label="Example 10 KM Fare" value={`৳${money(selected.example_fare_10km)}`} />
+          <Info label="Primary Phone" value={selected.phone_primary} />
+          <Info label="Secondary Phone" value={selected.phone_secondary || "Not provided"} />
+          <Info label="Contact Person" value={selected.contact_person || "Not provided"} />
+        </section>
+      </div>
+
+      <div className="details-modern-grid">
+        <section className="details-card modern-map-card">
+          <div className="section-title-row">
+            <div>
+              <h3>Ambulance Live Location</h3>
+              <p>Current ambulance location or saved base address.</p>
+            </div>
+            <span className="soft-icon">
+              <MapPin size={18} />
+            </span>
+          </div>
+
+          <MapBox
+            latitude={ambulanceLatitude}
+            longitude={ambulanceLongitude}
+            title={selected.service_name}
+            note={ambulanceLocationNote}
+          />
+
+          <p className="address-text">{selected.address || "Address not provided."}</p>
+
+          {ambulanceLatitude && ambulanceLongitude && (
+            <a
+              className="map-link"
+              href={`https://www.google.com/maps?q=${ambulanceLatitude},${ambulanceLongitude}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <MapPin size={16} />
+              Open Full Map
+            </a>
+          )}
+        </section>
+
+        <section className="details-card modern-service-card">
+          <div className="section-title-row">
+            <div>
+              <h3>Equipment</h3>
+              <p>Available ambulance equipment.</p>
+            </div>
+            <span className="soft-icon">
+              <ShieldCheck size={18} />
+            </span>
+          </div>
+
+          <div className="equipment-list modern-equipment">
+            {selected.equipment_items?.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+
+          <div className="description-box">
+            <h3>Description</h3>
+            <p>{selected.description || "No description added."}</p>
+          </div>
+        </section>
+      </div>
+
+      <div className="details-modern-grid">
+        <section className="details-card">
+          <h3>Recent Messages</h3>
+
+          {selectedDetails?.messages?.length ? (
+            <div className="mini-list modern-mini-list">
+              {selectedDetails.messages.map((message) => (
+                <div key={message.id}>
+                  <strong>{message.sender_name}</strong>
+                  <p>{message.message}</p>
+                  <small>{formatDate(message.created_at)} · {message.message_type}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No public messages yet.</p>
+          )}
+        </section>
+
+        <section className="details-card">
+          <h3>Reviews</h3>
+
+          {selectedDetails?.reviews?.length ? (
+            <div className="mini-list modern-mini-list">
+              {selectedDetails.reviews.map((review) => (
+                <div key={review.id}>
+                  <strong>{review.reviewer_name}</strong>
+                  <p>{"★".repeat(Number(review.rating || 0))} {review.review_text}</p>
+                  <small>{formatDate(review.service_date || review.created_at)}</small>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">No reviews yet.</p>
+          )}
+        </section>
+      </div>
+
+      <form className="review-form modern-review-form" onSubmit={submitReview}>
+        <div className="section-title-row">
+          <div>
+            <h3>Add Review</h3>
+            <p>Share your ambulance service experience.</p>
+          </div>
+          <span className="soft-icon">
+            <Star size={18} />
+          </span>
         </div>
-      )}
+
+        <div className="form-row">
+          <input
+            name="reviewer_name"
+            value={reviewForm.reviewer_name}
+            onChange={updateReviewForm}
+            placeholder="Your name"
+            required
+          />
+
+          <input
+            name="reviewer_phone"
+            value={reviewForm.reviewer_phone}
+            onChange={updateReviewForm}
+            placeholder="Phone"
+          />
+
+          <select name="rating" value={reviewForm.rating} onChange={updateReviewForm}>
+            <option value="5">5 Stars</option>
+            <option value="4">4 Stars</option>
+            <option value="3">3 Stars</option>
+            <option value="2">2 Stars</option>
+            <option value="1">1 Star</option>
+          </select>
+        </div>
+
+        <textarea
+          name="review_text"
+          value={reviewForm.review_text}
+          onChange={updateReviewForm}
+          placeholder="Write your experience..."
+        />
+
+        <button className="submit-btn" disabled={submitting}>
+          Submit Review
+        </button>
+      </form>
+    </div>
+  </div>
+)}
 
       {updateTarget && (
         <div className="modal-overlay">
@@ -3012,149 +3087,197 @@ body {
 }
 
 
-/* ===== MODERN HOTLINE, SEARCH, FILTER CONTROLS PATCH ===== */
-.hotline-card {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  min-height: 100%;
+/* ===== FORCE MODERN AMBULANCE FILTER + HOTLINE UI ===== */
+:root {
+  --amb-primary: #2563eb;
+  --amb-primary-dark: #1d4ed8;
+  --amb-cyan: #06b6d4;
+  --amb-teal: #14b8a6;
+  --amb-ink: #0f172a;
+  --amb-muted: #64748b;
+  --amb-border: #dbeafe;
+  --amb-soft: #eff6ff;
+}
+
+.ambulance-page {
   background:
-    radial-gradient(circle at 20% 18%, rgba(59, 130, 246, .32), transparent 34%),
-    radial-gradient(circle at 82% 78%, rgba(20, 184, 166, .26), transparent 35%),
-    linear-gradient(145deg, #020617 0%, #0f172a 52%, #111827 100%) !important;
-  border: 1px solid rgba(148, 163, 184, .24) !important;
+    radial-gradient(circle at 12% 6%, rgba(37, 99, 235, .10), transparent 28%),
+    radial-gradient(circle at 92% 4%, rgba(20, 184, 166, .12), transparent 28%),
+    #f8fafc !important;
+}
+
+.ambulance-hero {
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 300px) !important;
+  align-items: stretch !important;
+}
+
+.hotline-card {
+  position: relative !important;
+  isolation: isolate !important;
+  overflow: hidden !important;
+  min-height: 100% !important;
+  border-radius: 30px !important;
+  padding: 26px !important;
+  background:
+    radial-gradient(circle at 20% 12%, rgba(255, 255, 255, .30), transparent 26%),
+    linear-gradient(135deg, #1d4ed8 0%, #2563eb 42%, #06b6d4 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(191, 219, 254, .82) !important;
   box-shadow:
-    0 28px 70px rgba(2, 6, 23, .28),
-    inset 0 1px 0 rgba(255, 255, 255, .08) !important;
-  transform: translateZ(0);
-  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    0 28px 70px rgba(37, 99, 235, .28),
+    inset 0 1px 0 rgba(255, 255, 255, .36) !important;
+  transform: translateZ(0) !important;
+  transition: transform .22s ease, box-shadow .22s ease, filter .22s ease !important;
 }
 
 .hotline-card::before {
-  content: "";
-  position: absolute;
-  inset: 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 255, 255, .08);
-  pointer-events: none;
+  content: "" !important;
+  position: absolute !important;
+  inset: -45% auto auto -35% !important;
+  width: 190px !important;
+  height: 190px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, .18) !important;
+  z-index: -1 !important;
+  animation: ambulanceGlowFloat 5s ease-in-out infinite !important;
 }
 
 .hotline-card::after {
-  content: "";
-  position: absolute;
-  width: 150px;
-  height: 150px;
-  right: -70px;
-  bottom: -80px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, .38);
-  filter: blur(4px);
-  z-index: -1;
-  animation: hotlineGlow 3.4s ease-in-out infinite;
-}
-
-.hotline-card > svg {
-  width: 50px;
-  height: 50px;
-  padding: 12px;
-  border-radius: 18px;
-  color: #bfdbfe;
-  background: rgba(255, 255, 255, .08);
-  border: 1px solid rgba(255, 255, 255, .12);
-}
-
-.hotline-card strong {
-  color: #ffffff;
-  letter-spacing: .04em;
-  text-shadow: 0 8px 24px rgba(37, 99, 235, .25);
-}
-
-.hotline-card span {
-  color: #c7d2fe !important;
-  letter-spacing: .01em;
+  content: "Call Now" !important;
+  position: absolute !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  border-radius: 999px !important;
+  padding: 7px 11px !important;
+  background: rgba(255, 255, 255, .18) !important;
+  border: 1px solid rgba(255, 255, 255, .24) !important;
+  color: rgba(255, 255, 255, .94) !important;
+  font-size: .76rem !important;
+  font-weight: 950 !important;
+  letter-spacing: .02em !important;
 }
 
 .hotline-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  border-color: rgba(96, 165, 250, .45) !important;
+  transform: translateY(-4px) scale(1.01) !important;
+  filter: saturate(1.05) !important;
   box-shadow:
-    0 34px 90px rgba(2, 6, 23, .34),
-    0 0 0 7px rgba(37, 99, 235, .08),
-    inset 0 1px 0 rgba(255, 255, 255, .1) !important;
+    0 34px 86px rgba(37, 99, 235, .34),
+    inset 0 1px 0 rgba(255, 255, 255, .38) !important;
+}
+
+.hotline-card > svg {
+  flex: 0 0 58px !important;
+  width: 58px !important;
+  height: 58px !important;
+  padding: 13px !important;
+  border-radius: 22px !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, .18) !important;
+  border: 1px solid rgba(255, 255, 255, .28) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .26) !important;
+}
+
+.hotline-card strong {
+  color: #ffffff !important;
+  font-size: clamp(2.45rem, 4vw, 3.35rem) !important;
+  letter-spacing: -.08em !important;
+  text-shadow: 0 10px 30px rgba(15, 23, 42, .22) !important;
+}
+
+.hotline-card span {
+  color: #e0f2fe !important;
+  font-size: .9rem !important;
+  letter-spacing: .02em !important;
 }
 
 .filter-panel {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .94), rgba(248, 250, 252, .92)) !important;
-  backdrop-filter: blur(18px);
-  border: 1px solid rgba(219, 227, 239, .96) !important;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, .08) !important;
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: minmax(270px, 1.55fr) repeat(6, minmax(118px, .85fr)) !important;
+  gap: 13px !important;
+  align-items: center !important;
+  padding: 18px !important;
+  border-radius: 30px !important;
+  background: rgba(255, 255, 255, .88) !important;
+  border: 1px solid rgba(219, 234, 254, .92) !important;
+  box-shadow: 0 22px 55px rgba(15, 23, 42, .08) !important;
+  backdrop-filter: blur(18px) !important;
+  overflow: visible !important;
 }
 
 .search-field {
-  position: relative;
+  position: relative !important;
+  min-width: 0 !important;
 }
 
 .search-field svg {
-  transition: color .2s ease, transform .2s ease;
+  left: 16px !important;
+  color: var(--amb-primary) !important;
+  z-index: 2 !important;
+  filter: drop-shadow(0 6px 12px rgba(37, 99, 235, .18)) !important;
+  animation: ambulanceSearchPulse 1.8s ease-in-out infinite !important;
 }
 
-.search-field input,
-.filter-panel > input,
-.filter-panel select,
-.clear-btn,
-.check-pill {
-  transition:
-    border-color .2s ease,
-    box-shadow .2s ease,
-    background .2s ease,
-    color .2s ease,
-    transform .2s ease;
+.search-field::after {
+  content: "" !important;
+  position: absolute !important;
+  right: 15px !important;
+  top: 50% !important;
+  width: 15px !important;
+  height: 15px !important;
+  margin-top: -7.5px !important;
+  border-radius: 999px !important;
+  border: 2px solid rgba(37, 99, 235, .18) !important;
+  border-top-color: var(--amb-primary) !important;
+  opacity: .42 !important;
+  animation: ambulanceSpin .95s linear infinite !important;
+  pointer-events: none !important;
 }
 
 .search-field input,
 .filter-panel > input,
 .filter-panel select {
-  min-height: 54px !important;
-  border-radius: 18px !important;
-  background: rgba(255, 255, 255, .9) !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  width: 100% !important;
+  border-radius: 19px !important;
   border: 1px solid #dbeafe !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8), 0 8px 22px rgba(15, 23, 42, .04);
+  background: rgba(255, 255, 255, .92) !important;
+  color: var(--amb-ink) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .88),
+    0 10px 24px rgba(15, 23, 42, .045) !important;
+  font-size: .92rem !important;
+  font-weight: 900 !important;
+  letter-spacing: .005em !important;
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, background .2s ease !important;
+}
+
+.search-field input {
+  padding-left: 48px !important;
+  padding-right: 42px !important;
 }
 
 .search-field input:focus,
 .filter-panel > input:focus,
-.filter-panel select:focus {
-  border-color: #2563eb !important;
-  box-shadow: 0 0 0 5px rgba(37, 99, 235, .13), 0 14px 32px rgba(15, 23, 42, .08) !important;
-}
-
-.search-field:focus-within svg,
-.search-field.is-searching svg {
-  color: #2563eb !important;
-  transform: translateY(-50%) scale(1.08);
-}
-
-.search-field.is-searching::after {
-  content: "";
-  position: absolute;
-  right: 16px;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  margin-top: -9px;
-  border-radius: 999px;
-  border: 3px solid #dbeafe;
-  border-top-color: #2563eb;
-  animation: spinSearch .8s linear infinite;
-}
-
-.search-field.is-searching input {
-  padding-right: 48px !important;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, .92), rgba(239, 246, 255, .94), rgba(255, 255, 255, .92)) !important;
-  background-size: 220% 100% !important;
-  animation: searchingShimmer 1.25s ease-in-out infinite;
+.filter-panel select:focus,
+.update-form input:focus,
+.update-form select:focus,
+.update-form textarea:focus,
+.message-form input:focus,
+.message-form select:focus,
+.message-form textarea:focus,
+.review-form input:focus,
+.review-form select:focus,
+.review-form textarea:focus,
+.user-chat-form input:focus,
+.user-chat-form select:focus,
+.user-chat-form textarea:focus {
+  border-color: var(--amb-primary) !important;
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 235, .12),
+    0 14px 32px rgba(15, 23, 42, .08) !important;
+  background: #ffffff !important;
 }
 
 .filter-panel select,
@@ -3164,157 +3287,495 @@ body {
 .user-chat-form select {
   appearance: none !important;
   -webkit-appearance: none !important;
-  padding-right: 44px !important;
-  cursor: pointer;
+  padding-right: 42px !important;
   background-image:
     linear-gradient(45deg, transparent 50%, #2563eb 50%),
     linear-gradient(135deg, #2563eb 50%, transparent 50%),
-    linear-gradient(135deg, rgba(219, 234, 254, .9), rgba(219, 234, 254, .9)) !important;
+    linear-gradient(135deg, rgba(239, 246, 255, .95), rgba(224, 242, 254, .95)) !important;
   background-position:
-    calc(100% - 23px) 50%,
-    calc(100% - 17px) 50%,
-    calc(100% - 43px) 50% !important;
-  background-size: 7px 7px, 7px 7px, 1px 28px !important;
+    calc(100% - 21px) 50%,
+    calc(100% - 15px) 50%,
+    calc(100% - 37px) 50% !important;
+  background-size:
+    6px 6px,
+    6px 6px,
+    28px 28px !important;
   background-repeat: no-repeat !important;
 }
 
-.filter-panel select:hover,
-.update-form select:hover,
-.message-form select:hover,
-.review-form select:hover,
-.user-chat-form select:hover {
-  border-color: #93c5fd !important;
-  transform: translateY(-1px);
-}
-
 .check-pill {
-  position: relative;
-  min-height: 54px !important;
-  border-radius: 18px !important;
-  background: linear-gradient(135deg, #eff6ff, #f0fdfa) !important;
-  border: 1px solid #bfdbfe !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .86), 0 10px 24px rgba(37, 99, 235, .06);
-  color: #1e3a8a !important;
-  user-select: none;
+  position: relative !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  width: 100% !important;
+  padding: 0 16px 0 12px !important;
+  border-radius: 20px !important;
+  background: linear-gradient(135deg, rgba(239, 246, 255, .96), rgba(248, 250, 252, .96)) !important;
+  color: #334155 !important;
+  border: 1px solid #dbeafe !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 11px !important;
+  font-size: .88rem !important;
+  font-weight: 950 !important;
+  white-space: nowrap !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .88),
+    0 10px 24px rgba(15, 23, 42, .045) !important;
+  cursor: pointer !important;
+  transition: transform .2s ease, background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease !important;
 }
 
 .check-pill:hover {
-  transform: translateY(-2px);
-  border-color: #60a5fa !important;
-  box-shadow: 0 16px 32px rgba(37, 99, 235, .12);
+  transform: translateY(-2px) !important;
+  border-color: #bfdbfe !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, .10) !important;
 }
 
-.check-pill input {
+.check-pill input[type="checkbox"] {
+  position: relative !important;
   appearance: none !important;
   -webkit-appearance: none !important;
-  position: relative;
-  width: 38px !important;
-  height: 22px !important;
-  flex: 0 0 38px !important;
+  flex: 0 0 46px !important;
+  width: 46px !important;
+  height: 26px !important;
+  margin: 0 !important;
   border-radius: 999px !important;
-  border: none !important;
-  background: #cbd5e1 !important;
-  box-shadow: inset 0 2px 5px rgba(15, 23, 42, .18);
-  cursor: pointer;
-  transition: background .2s ease;
+  border: 1px solid #cbd5e1 !important;
+  background: linear-gradient(135deg, #e2e8f0, #f8fafc) !important;
+  box-shadow: inset 0 2px 5px rgba(15, 23, 42, .10) !important;
+  cursor: pointer !important;
+  transition: background .22s ease, border-color .22s ease, box-shadow .22s ease !important;
 }
 
-.check-pill input::after {
-  content: "";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: white;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, .22);
-  transition: transform .2s ease;
+.check-pill input[type="checkbox"]::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 3px !important;
+  left: 3px !important;
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 999px !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, .18) !important;
+  transition: transform .22s ease, box-shadow .22s ease !important;
 }
 
-.check-pill input:checked {
-  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+.check-pill input[type="checkbox"]:checked {
+  border-color: rgba(37, 99, 235, .88) !important;
+  background: linear-gradient(135deg, #2563eb, #06b6d4) !important;
+  box-shadow: inset 0 1px 4px rgba(15, 23, 42, .10), 0 8px 16px rgba(37, 99, 235, .18) !important;
 }
 
-.check-pill input:checked::after {
-  transform: translateX(16px);
+.check-pill input[type="checkbox"]:checked::after {
+  transform: translateX(20px) !important;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, .22) !important;
 }
 
-.check-pill:has(input:checked) {
-  color: #ffffff !important;
-  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
-  border-color: transparent !important;
-  box-shadow: 0 18px 34px rgba(37, 99, 235, .22);
+.check-pill:has(input[type="checkbox"]:checked) {
+  color: #1d4ed8 !important;
+  border-color: #93c5fd !important;
+  background: linear-gradient(135deg, #dbeafe, #ecfeff) !important;
+  box-shadow: 0 16px 34px rgba(37, 99, 235, .13) !important;
 }
 
 .clear-btn {
-  border-radius: 18px !important;
-  background: #ffffff !important;
-  border: 1px solid #dbeafe !important;
-  color: #2563eb !important;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, .05) !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  border-radius: 20px !important;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #0f172a, #2563eb) !important;
+  border: 1px solid rgba(37, 99, 235, .25) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, .16) !important;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease !important;
 }
 
 .clear-btn:hover {
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
-  border-color: transparent !important;
   color: #ffffff !important;
-  box-shadow: 0 18px 34px rgba(37, 99, 235, .22) !important;
+  background: linear-gradient(135deg, #2563eb, #06b6d4) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 18px 38px rgba(37, 99, 235, .24) !important;
 }
 
-.ambulance-loading {
-  min-height: 220px;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 10px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(37, 99, 235, .1), transparent 32%),
-    linear-gradient(135deg, rgba(255, 255, 255, .94), rgba(240, 253, 250, .9)) !important;
+.empty-card {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 26px !important;
+  border-color: #dbeafe !important;
+  background: linear-gradient(135deg, rgba(239, 246, 255, .82), rgba(255, 255, 255, .92)) !important;
 }
 
-.ambulance-loading strong {
-  color: #0f172a;
-  font-size: 1.08rem;
+.empty-card::before {
+  content: "" !important;
+  display: inline-block !important;
+  width: 18px !important;
+  height: 18px !important;
+  margin-right: 10px !important;
+  vertical-align: -3px !important;
+  border-radius: 999px !important;
+  border: 3px solid rgba(37, 99, 235, .18) !important;
+  border-top-color: #2563eb !important;
+  animation: ambulanceSpin .85s linear infinite !important;
 }
 
-.ambulance-loading small {
-  color: #64748b;
-  font-weight: 850;
+.update-form input,
+.update-form select,
+.update-form textarea,
+.message-form input,
+.message-form select,
+.message-form textarea,
+.review-form input,
+.review-form select,
+.review-form textarea,
+.user-chat-form input,
+.user-chat-form select,
+.user-chat-form textarea {
+  border-radius: 17px !important;
+  border-color: #dbeafe !important;
+  background: rgba(255, 255, 255, .96) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .88) !important;
+  font-weight: 850 !important;
 }
 
-.loading-ring {
-  width: 46px;
-  height: 46px;
-  border-radius: 999px;
-  border: 4px solid #dbeafe;
-  border-top-color: #2563eb;
-  border-right-color: #14b8a6;
-  animation: spinSearch .85s linear infinite;
-}
-
-@keyframes spinSearch {
+@keyframes ambulanceSpin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes searchingShimmer {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 220% 50%; }
+@keyframes ambulanceSearchPulse {
+  0%, 100% { transform: translateY(-50%) scale(1); opacity: .72; }
+  50% { transform: translateY(-50%) scale(1.12); opacity: 1; }
 }
 
-@keyframes hotlineGlow {
-  0%, 100% { transform: scale(1); opacity: .55; }
-  50% { transform: scale(1.18); opacity: .9; }
+@keyframes ambulanceGlowFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: .88; }
+  50% { transform: translate3d(28px, 20px, 0) scale(1.08); opacity: 1; }
+}
+
+@media (min-width: 1181px) {
+  .filter-panel .check-pill:nth-of-type(1) {
+    grid-column: 1 / span 2 !important;
+  }
+
+  .filter-panel .check-pill:nth-of-type(2) {
+    grid-column: 3 / span 2 !important;
+  }
+
+  .filter-panel .clear-btn {
+    grid-column: 5 / span 1 !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .ambulance-hero {
+    grid-template-columns: 1fr !important;
+  }
+
+  .filter-panel {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .search-field {
+    grid-column: span 3 !important;
+  }
 }
 
 @media (max-width: 760px) {
-  .hotline-card {
-    min-height: 150px;
+  .filter-panel {
+    grid-template-columns: 1fr !important;
+    padding: 14px !important;
   }
 
-  .check-pill {
-    justify-content: flex-start !important;
+  .search-field,
+  .filter-panel .check-pill:nth-of-type(1),
+  .filter-panel .check-pill:nth-of-type(2),
+  .filter-panel .clear-btn {
+    grid-column: span 1 !important;
+  }
+
+  .hotline-card {
+    min-height: 150px !important;
+  }
+}
+
+/* ===== MODERN DETAILS MODAL ONLY ===== */
+
+.details-modal-modern {
+  width: min(1120px, 96vw) !important;
+  padding: 0 !important;
+  border-radius: 32px !important;
+  overflow: hidden !important;
+  background: #f8fafc !important;
+  border: 1px solid rgba(226, 232, 240, 0.95) !important;
+  box-shadow: 0 32px 90px rgba(15, 23, 42, 0.28) !important;
+}
+
+.details-modal-modern .modal-close {
+  top: 18px !important;
+  right: 18px !important;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #0f172a !important;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+}
+
+.details-modern-hero {
+  padding: 30px;
+  padding-right: 76px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+  color: white;
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.34), transparent 34%),
+    linear-gradient(135deg, #2563eb, #4f46e5 58%, #14b8a6);
+}
+
+.details-modern-hero h2 {
+  margin: 12px 0 10px;
+  font-size: clamp(1.8rem, 4vw, 2.75rem);
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.details-modern-hero p {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #dbeafe;
+  font-weight: 850;
+}
+
+.modern-call-main {
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #2563eb !important;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18) !important;
+  white-space: nowrap;
+}
+
+.details-modern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 18px;
+  padding: 18px 22px 0;
+}
+
+.details-modal-modern .details-card,
+.modern-review-form {
+  border-radius: 24px !important;
+  border: 1px solid #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.07) !important;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.section-title-row h3 {
+  margin: 0 0 5px;
+  letter-spacing: -0.025em;
+}
+
+.section-title-row p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.soft-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #eff6ff;
+  color: #2563eb;
+  flex: 0 0 auto;
+}
+
+.details-modal-modern .map-box {
+  height: 260px !important;
+  margin: 12px 0 !important;
+  border-radius: 22px !important;
+}
+
+.modern-map-card .map-box {
+  height: 300px !important;
+}
+
+.modern-share-form {
+  display: grid;
+  gap: 12px;
+}
+
+.modern-share-form input,
+.modern-share-form textarea,
+.modern-review-form input,
+.modern-review-form select,
+.modern-review-form textarea {
+  width: 100%;
+  border: 1px solid #dbe3ef !important;
+  border-radius: 16px !important;
+  padding: 13px 14px !important;
+  font: inherit;
+  font-weight: 850;
+  outline: none;
+  background: #ffffff;
+}
+
+.modern-share-form input:focus,
+.modern-share-form textarea:focus,
+.modern-review-form input:focus,
+.modern-review-form select:focus,
+.modern-review-form textarea:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.modern-location-btn {
+  min-height: 48px !important;
+  color: #2563eb !important;
+  background: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+.modern-share-submit {
+  min-height: 50px !important;
+  border-radius: 16px !important;
+}
+
+.modern-equipment span {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border: 1px solid #dbeafe;
+}
+
+.description-box {
+  margin-top: 18px;
+  padding: 16px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.description-box h3 {
+  margin: 0 0 8px;
+}
+
+.description-box p {
+  margin: 0;
+  color: #475569;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.modern-mini-list div {
+  border: 1px solid #e2e8f0;
+  background: #f8fafc !important;
+}
+
+.modern-review-form {
+  margin: 18px 22px 22px;
+}
+
+.modern-review-form .submit-btn {
+  min-height: 50px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+}
+
+@media (max-width: 860px) {
+  .details-modern-hero {
+    flex-direction: column;
+    padding-right: 72px;
+  }
+
+  .details-modern-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .details-modal-modern .map-box,
+  .modern-map-card .map-box {
+    height: 230px !important;
+  }
+}
+
+
+/* ===== DETAILS MODAL SCROLL FIX - CSS ONLY, FUNCTIONS UNCHANGED ===== */
+
+.modal-overlay {
+  place-items: start center !important;
+  align-items: start !important;
+  justify-items: center !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 24px 14px !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.details-modal-modern {
+  max-height: calc(100vh - 48px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  scrollbar-gutter: stable !important;
+}
+
+.details-modal-modern::-webkit-scrollbar,
+.user-chat-modal::-webkit-scrollbar,
+.update-modal::-webkit-scrollbar {
+  width: 9px;
+}
+
+.details-modal-modern::-webkit-scrollbar-track,
+.user-chat-modal::-webkit-scrollbar-track,
+.update-modal::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.65);
+  border-radius: 999px;
+}
+
+.details-modal-modern::-webkit-scrollbar-thumb,
+.user-chat-modal::-webkit-scrollbar-thumb,
+.update-modal::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #2563eb, #14b8a6);
+  border-radius: 999px;
+}
+
+.details-modal-modern .map-box iframe,
+.details-modal-modern iframe {
+  pointer-events: none !important;
+}
+
+.details-modal-modern .details-modern-hero {
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.details-modal-modern .details-modern-grid,
+.details-modal-modern .modern-review-form {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+@media (max-width: 860px) {
+  .modal-overlay {
+    padding: 12px !important;
+  }
+
+  .details-modal-modern {
+    width: 100% !important;
+    max-height: calc(100vh - 24px) !important;
+    border-radius: 24px !important;
   }
 }
 

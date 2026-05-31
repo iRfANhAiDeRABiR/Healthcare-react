@@ -1027,9 +1027,10 @@ function Stat({ icon, label, value }) {
 
 function MessageCard({ message, replyValue, onReplyChange, onStatusChange }) {
   const hasUserLocation = message.user_latitude && message.user_longitude;
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <article className="chat-card">
+    <article className={`chat-card ${expanded ? "is-expanded" : "is-collapsed"}`}>
       <div className="chat-card-head">
         <div className="user-avatar">
           {String(message.sender_name || "U").charAt(0).toUpperCase()}
@@ -1038,9 +1039,21 @@ function MessageCard({ message, replyValue, onReplyChange, onStatusChange }) {
         <div className="chat-user-main">
           <div className="chat-user-row">
             <h3>{message.sender_name}</h3>
-            <span className={`message-status ${message.status}`}>
-              {message.status}
-            </span>
+
+            <div className="chat-card-actions">
+              <span className={`message-status ${message.status}`}>
+                {message.status}
+              </span>
+
+              <button
+                type="button"
+                className="chat-toggle-btn"
+                onClick={() => setExpanded((current) => !current)}
+                aria-expanded={expanded}
+              >
+                {expanded ? "Hide" : "Open"}
+              </button>
+            </div>
           </div>
 
           <p>{message.sender_phone}</p>
@@ -1048,65 +1061,78 @@ function MessageCard({ message, replyValue, onReplyChange, onStatusChange }) {
         </div>
       </div>
 
-      <div className="chat-bubble user-bubble">
-        <span>User message</span>
-        <p>
-          {message.message ||
-            "User shared current location with ambulance manager."}
-        </p>
-      </div>
-
-      {hasUserLocation && (
-        <div className="pickup-map-card">
-          <MapBox
-            latitude={message.user_latitude}
-            longitude={message.user_longitude}
-            title={`${message.sender_name}'s Pickup Location`}
-            note={message.sender_phone}
-          />
-
-          <a
-            className="map-open-btn"
-            href={`https://www.google.com/maps?q=${message.user_latitude},${message.user_longitude}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <MapPin size={15} />
-            Open pickup location
-          </a>
+      {!expanded && (
+        <div className="chat-preview-row">
+          <span>
+            {hasUserLocation ? "Pickup location shared" : "Message received"}
+          </span>
+          <strong>Click Open to view details, map, reply box, and actions.</strong>
         </div>
       )}
 
-      {message.manager_reply && (
-        <div className="chat-bubble manager-bubble">
-          <span>Manager reply</span>
-          <p>{message.manager_reply}</p>
+      {expanded && (
+        <div className="chat-expand-content">
+          <div className="chat-bubble user-bubble">
+            <span>User message</span>
+            <p>
+              {message.message ||
+                "User shared current location with ambulance manager."}
+            </p>
+          </div>
+
+          {hasUserLocation && (
+            <div className="pickup-map-card">
+              <MapBox
+                latitude={message.user_latitude}
+                longitude={message.user_longitude}
+                title={`${message.sender_name}'s Pickup Location`}
+                note={message.sender_phone}
+              />
+
+              <a
+                className="map-open-btn"
+                href={`https://www.google.com/maps?q=${message.user_latitude},${message.user_longitude}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <MapPin size={15} />
+                Open pickup location
+              </a>
+            </div>
+          )}
+
+          {message.manager_reply && (
+            <div className="chat-bubble manager-bubble">
+              <span>Manager reply</span>
+              <p>{message.manager_reply}</p>
+            </div>
+          )}
+
+          <div className="reply-composer">
+            <textarea
+              value={replyValue}
+              onChange={(event) => onReplyChange(event.target.value)}
+              placeholder="Write a short reply or internal note..."
+            />
+
+            <div className="reply-actions">
+              <button type="button" onClick={() => onStatusChange("replied")}>
+                <CheckCircle size={15} />
+                Mark replied
+              </button>
+
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => onStatusChange("closed")}
+              >
+                <XCircle size={15} />
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
-
-      <div className="reply-composer">
-        <textarea
-          value={replyValue}
-          onChange={(event) => onReplyChange(event.target.value)}
-          placeholder="Write a short reply or internal note..."
-        />
-
-        <div className="reply-actions">
-          <button type="button" onClick={() => onStatusChange("replied")}>
-            <CheckCircle size={15} />
-            Mark replied
-          </button>
-
-          <button
-            type="button"
-            className="close-btn"
-            onClick={() => onStatusChange("closed")}
-          >
-            <XCircle size={15} />
-            Close
-          </button>
-        </div>
-      </div>
     </article>
   );
 }
@@ -2099,4 +2125,111 @@ const styles = `
 .manager-card:hover {
   box-shadow: 0 22px 48px rgba(15, 23, 42, .1);
 }
+/* ===== KEEP INBOX UI + MAKE EACH CHAT EXPANDABLE ===== */
+.chat-card-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-toggle-btn {
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  min-height: 34px;
+  padding: 0 14px;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  color: #ffffff;
+  font-size: .74rem;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, .18);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.chat-toggle-btn:hover {
+  transform: translateY(-1px);
+  filter: saturate(1.05);
+  box-shadow: 0 14px 26px rgba(37, 99, 235, .24);
+}
+
+.chat-toggle-btn[aria-expanded="true"] {
+  background: #ffffff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .08);
+}
+
+.chat-card.is-collapsed {
+  padding-bottom: 14px;
+}
+
+.chat-card.is-collapsed .chat-card-head {
+  margin-bottom: 10px;
+}
+
+.chat-preview-row {
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.chat-preview-row span {
+  color: #2563eb;
+  font-size: .75rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.chat-preview-row strong {
+  color: #64748b;
+  font-size: .86rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.chat-expand-content {
+  animation: inboxExpand .2s ease both;
+}
+
+@keyframes inboxExpand {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .chat-toggle-btn {
+    flex: 1;
+  }
+
+  .chat-preview-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chat-preview-row strong {
+    text-align: left;
+  }
+}
+
 `;
